@@ -1,1 +1,1 @@
-web: java $JAVA_OPTS -jar target/*.jar
+web: java -war target/git-prov-0.0.1-SNAPSHOT.war
