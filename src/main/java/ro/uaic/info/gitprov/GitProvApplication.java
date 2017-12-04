@@ -2,13 +2,13 @@ package ro.uaic.info.gitprov;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import springfox.documentation.swagger2.annotations.EnableSwagger2;
 
 @SpringBootApplication
-public class GitProvApplication
-{
+@EnableSwagger2
+public class GitProvApplication {
 
-    public static void main(String[] args)
-    {
+    public static void main(String[] args) {
         SpringApplication.run(GitProvApplication.class, args);
     }
 }
