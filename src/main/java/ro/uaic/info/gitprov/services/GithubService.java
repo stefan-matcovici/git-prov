@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -66,8 +67,14 @@ public class GithubService {
      * @return the repository by query string
      * @throws IOException exception
      */
-    public Collection<SearchRepository> getRepositoryByQueryParameters(String queryParameters) throws IOException {
-        return repositoryService.searchRepositories("name=" + queryParameters);
+    public Collection<SearchRepository> getRepositoryByQueryParameters(Map<String, String[]> queryParameters) throws IOException {
+        Map<String, String> transformedMap = new HashMap<>();
+        for (Map.Entry<String, String[]> entry:queryParameters.entrySet()){
+            for (String value:entry.getValue()){
+                transformedMap.put(entry.getKey(), value);
+            }
+        }
+        return repositoryService.searchRepositories(transformedMap);
     }
 
 

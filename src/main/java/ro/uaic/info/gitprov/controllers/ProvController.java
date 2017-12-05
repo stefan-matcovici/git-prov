@@ -9,9 +9,11 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
+import org.springframework.web.HttpRequestHandler;
 import org.springframework.web.bind.annotation.*;
 import ro.uaic.info.gitprov.services.GithubService;
 
+import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -31,9 +33,10 @@ public class ProvController {
 
     @RequestMapping(value = "",method = RequestMethod.GET)
     @ResponseBody
-    HttpEntity<List<String>> getRepositoryByQueryString(@RequestParam(value="name") String repositoryName) throws IOException{
+    HttpEntity<List<String>> getRepositoryByQueryString(HttpServletRequest request) throws IOException{
+        Map<String, String[]> requestParameters = request.getParameterMap();
         List<String> result = new ArrayList<>();
-        for (SearchRepository repository:githubService.getRepositoryByQueryParameters(repositoryName)){
+        for (SearchRepository repository:githubService.getRepositoryByQueryParameters(requestParameters)){
             ControllerLinkBuilder builder = ControllerLinkBuilder.linkTo(ProvController.class).slash(repository.getOwner()).slash(repository.getName());
             result.add(builder.toString());
         }
