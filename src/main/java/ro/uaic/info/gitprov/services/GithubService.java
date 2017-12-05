@@ -6,6 +6,7 @@ import org.eclipse.egit.github.core.SearchRepository;
 import org.eclipse.egit.github.core.client.GitHubClient;
 import org.eclipse.egit.github.core.client.PageIterator;
 import org.eclipse.egit.github.core.service.RepositoryService;
+import org.eclipse.egit.github.core.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.env.Environment;
@@ -13,6 +14,7 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.util.Collection;
+import java.util.Map;
 
 /**
  * Service that gets a repository or a list of repositories based on different ways of querying the Github API
@@ -51,7 +53,7 @@ public class GithubService {
      * @param user           the user
      * @param repositoryName the searched repository name
      * @return the repository identified by user and repositoryName
-     * @throws IOException
+     * @throws IOException exception
      */
     public Repository getRepositoryByUserAndName(String user, String repositoryName) throws IOException{
         return repositoryService.getRepository(user, repositoryName);
@@ -60,11 +62,24 @@ public class GithubService {
     /**
      * Gets a list of repositories which match the repository name query
      *
-     * @param repositoryName the searched repository name
+     * @param queryParameters the parameters by which to filter
      * @return the repository by query string
-     * @throws IOException
+     * @throws IOException exception
      */
-    public Collection<SearchRepository> getRepositoryByQueryString(String repositoryName) throws IOException {
-        return repositoryService.searchRepositories(repositoryName);
+    public Collection<SearchRepository> getRepositoryByQueryParameters(String queryParameters) throws IOException {
+        return repositoryService.searchRepositories("name=" + queryParameters);
     }
+
+
+    /**
+     * Gets all repositories for a specified user.
+     *
+     * @param user the user
+     * @return the all repositories by user
+     * @throws IOException exception
+     */
+    public Collection<Repository> getAllRepositoriesByUser(String user) throws IOException {
+        return repositoryService.getRepositories(user);
+    }
+
 }
