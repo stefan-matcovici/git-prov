@@ -4,12 +4,8 @@ import org.apache.log4j.Logger;
 import org.eclipse.egit.github.core.Repository;
 import org.eclipse.egit.github.core.SearchRepository;
 import org.eclipse.egit.github.core.client.GitHubClient;
-import org.eclipse.egit.github.core.client.PageIterator;
 import org.eclipse.egit.github.core.service.RepositoryService;
-import org.eclipse.egit.github.core.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -31,7 +27,14 @@ public class GithubService {
      */
     final static Logger logger = Logger.getLogger(GithubService.class);
 
+    /**
+     * The github client that authenticates the application on Github
+     */
     private GitHubClient client;
+
+    /**
+     * The repository service that it's used to retrieve repositories
+     */
     private RepositoryService repositoryService;
 
     @Autowired
@@ -56,12 +59,12 @@ public class GithubService {
      * @return the repository identified by user and repositoryName
      * @throws IOException exception
      */
-    public Repository getRepositoryByUserAndName(String user, String repositoryName) throws IOException{
+    public Repository getRepositoryByUserAndName(String user, String repositoryName) throws IOException {
         return repositoryService.getRepository(user, repositoryName);
     }
 
     /**
-     * Gets a list of repositories which match the repository name query
+     * Gets a list of repositories which match the query params
      *
      * @param queryParameters the parameters by which to filter
      * @return the repository by query string
@@ -69,11 +72,12 @@ public class GithubService {
      */
     public Collection<SearchRepository> getRepositoryByQueryParameters(Map<String, String[]> queryParameters) throws IOException {
         Map<String, String> transformedMap = new HashMap<>();
-        for (Map.Entry<String, String[]> entry:queryParameters.entrySet()){
-            for (String value:entry.getValue()){
+        for (Map.Entry<String, String[]> entry : queryParameters.entrySet()) {
+            for (String value : entry.getValue()) {
                 transformedMap.put(entry.getKey(), value);
             }
         }
+
         return repositoryService.searchRepositories(transformedMap);
     }
 

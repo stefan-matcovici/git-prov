@@ -19,6 +19,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * The type Prov controller.
+ */
 @Controller
 @RequestMapping(value = "/repositories")
 public class ProvController {
@@ -31,6 +34,13 @@ public class ProvController {
     final static Logger logger = Logger.getLogger(GithubService.class);
 
 
+    /**
+     * Gets repository by query string.
+     *
+     * @param request the request
+     * @return the repository by query string
+     * @throws IOException the io exception
+     */
     @RequestMapping(value = "",method = RequestMethod.GET)
     @ResponseBody
     HttpEntity<List<String>> getRepositoryByQueryString(HttpServletRequest request) throws IOException{
@@ -44,6 +54,14 @@ public class ProvController {
         return new ResponseEntity<>(result, HttpStatus.MULTIPLE_CHOICES);
     }
 
+    /**
+     * Gets repository by user and name.
+     *
+     * @param user the user
+     * @param name the name
+     * @return the repository by user and name
+     * @throws IOException the io exception
+     */
     @RequestMapping(value = "/{user}/{name}",method = RequestMethod.GET)
     @ResponseBody
     HttpEntity<?> getRepositoryByUserAndName(@PathVariable String user, @PathVariable String name) throws IOException {
@@ -51,6 +69,13 @@ public class ProvController {
         return new ResponseEntity<>(HttpStatus.OK);
     }
 
+    /**
+     * Gets all repositories by user.
+     *
+     * @param user the user
+     * @return the all repositories by user
+     * @throws IOException the io exception
+     */
     @RequestMapping(value = "/{user}",method = RequestMethod.GET)
     @ResponseBody
     HttpEntity<List<String>> getAllRepositoriesByUser(@PathVariable String user) throws IOException {
