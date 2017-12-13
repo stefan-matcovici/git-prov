@@ -4,14 +4,12 @@ import org.apache.log4j.Logger;
 import org.eclipse.egit.github.core.Repository;
 import org.eclipse.egit.github.core.SearchRepository;
 import org.eclipse.egit.github.core.client.GitHubClient;
-import org.eclipse.egit.github.core.client.PageIterator;
 import org.eclipse.egit.github.core.service.RepositoryService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -36,21 +34,27 @@ public class GithubService {
     private GitHubClient client;
 
     /**
-     * The repository service that it's used to retrieve repositories
+     * The repository service that is used to retrieve repositories
      */
     private RepositoryService repositoryService;
 
+    /**
+     * The token used to authenticate for more requests to the api
+     */
     @Autowired
     private String githubToken;
 
     /**
-     * Instantiates a new Github service. Sets up the github client with token from properties file and the repository
-     * service that will be used to fetch data about repositories
+     * Instantiates a new Github service.
      */
     public GithubService() {
         client = new GitHubClient();
     }
 
+    /**
+     * Sets up the github client with token from properties file and the repository service that will be used to fetch
+     * data about repositories. Added after constructor in order to let Spring get the token from properties file first
+     */
     @PostConstruct
     public void init() {
         client.setOAuth2Token(githubToken);
@@ -99,6 +103,13 @@ public class GithubService {
         return repositoryService.getRepositories(user);
     }
 
+    /**
+     * Gets all repositories by organization.
+     *
+     * @param organization the organization
+     * @return all repositories by organization
+     * @throws IOException the io exception
+     */
     public Collection<Repository> getAllRepositoriesByOrganization(String organization) throws IOException {
         return repositoryService.getOrgRepositories(organization);
     }

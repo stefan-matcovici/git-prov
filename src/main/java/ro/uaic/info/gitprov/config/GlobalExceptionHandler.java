@@ -22,8 +22,8 @@ public class GlobalExceptionHandler {
     /**
      * Handle request exception.
      */
-    @ResponseStatus(value=HttpStatus.NOT_FOUND)
+    @ResponseStatus(value = HttpStatus.NOT_FOUND)
     @ExceptionHandler(RequestException.class)
-    public void handleRequestException(){
+    public void handleRequestException() {
     }
 }

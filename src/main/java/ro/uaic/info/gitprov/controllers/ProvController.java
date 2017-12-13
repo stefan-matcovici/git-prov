@@ -19,7 +19,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * The type Prov controller.
+ * The Prov controller.
  */
 @Controller
 @RequestMapping(value = "/repositories")
@@ -74,7 +74,7 @@ public class ProvController {
     }
 
     /**
-     * Gets all repositories by user.
+     * Gets all repositories by organization.
      *
      * @param organization the organization
      * @return all repositories owned by the organization
