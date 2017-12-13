@@ -9,7 +9,6 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.HttpRequestHandler;
 import org.springframework.web.bind.annotation.*;
 import ro.uaic.info.gitprov.services.GithubService;
 
@@ -41,14 +40,19 @@ public class ProvController {
      * @return the repository by query string
      * @throws IOException the io exception
      */
-    @RequestMapping(value = "",method = RequestMethod.GET)
+    @RequestMapping(value = "", method = RequestMethod.GET)
     @ResponseBody
-    HttpEntity<List<String>> getRepositoryByQueryString(HttpServletRequest request) throws IOException{
+    HttpEntity<List<String>> getRepositoryByQueryString(HttpServletRequest request) throws IOException {
         Map<String, String[]> requestParameters = request.getParameterMap();
         List<String> result = new ArrayList<>();
-        for (SearchRepository repository:githubService.getRepositoryByQueryParameters(requestParameters)){
-            ControllerLinkBuilder builder = ControllerLinkBuilder.linkTo(ProvController.class).slash(repository.getOwner()).slash(repository.getName());
-            result.add(builder.toString());
+
+        if (requestParameters.size() == 0) {
+            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+        } else {
+            for (SearchRepository repository : githubService.getRepositoryByQueryParameters(requestParameters)) {
+                ControllerLinkBuilder builder = ControllerLinkBuilder.linkTo(ProvController.class).slash(repository.getOwner()).slash(repository.getName());
+                result.add(builder.toString());
+            }
         }
 
         return new ResponseEntity<>(result, HttpStatus.MULTIPLE_CHOICES);
@@ -62,7 +66,7 @@ public class ProvController {
      * @return the repository by user and name
      * @throws IOException the io exception
      */
-    @RequestMapping(value = "/{user}/{name}",method = RequestMethod.GET)
+    @RequestMapping(value = "/{user}/{name}", method = RequestMethod.GET)
     @ResponseBody
     HttpEntity<?> getRepositoryByUserAndName(@PathVariable String user, @PathVariable String name) throws IOException {
         Repository repository = githubService.getRepositoryByUserAndName(user, name);
@@ -72,15 +76,34 @@ public class ProvController {
     /**
      * Gets all repositories by user.
      *
+     * @param organization the organization
+     * @return all repositories owned by the organization
+     * @throws IOException the io exception
+     */
+    @RequestMapping(value = "/organizations/{organization}", method = RequestMethod.GET)
+    @ResponseBody
+    HttpEntity<List<String>> getAllRepositoriesByOrganization(@PathVariable String organization) throws IOException {
+        List<String> result = new ArrayList<>();
+        for (Repository repository : githubService.getAllRepositoriesByOrganization(organization)) {
+            ControllerLinkBuilder builder = ControllerLinkBuilder.linkTo(ProvController.class).slash(repository.getOwner().getLogin()).slash(repository.getName());
+            result.add(builder.toString());
+        }
+
+        return new ResponseEntity<>(result, HttpStatus.MULTIPLE_CHOICES);
+    }
+
+    /**
+     * Gets all repositories by user.
+     *
      * @param user the user
      * @return the all repositories by user
      * @throws IOException the io exception
      */
-    @RequestMapping(value = "/{user}",method = RequestMethod.GET)
+    @RequestMapping(value = "/users/{user}", method = RequestMethod.GET)
     @ResponseBody
     HttpEntity<List<String>> getAllRepositoriesByUser(@PathVariable String user) throws IOException {
         List<String> result = new ArrayList<>();
-        for (Repository repository:githubService.getAllRepositoriesByUser(user)){
+        for (Repository repository : githubService.getAllRepositoriesByUser(user)) {
             ControllerLinkBuilder builder = ControllerLinkBuilder.linkTo(ProvController.class).slash(repository.getOwner().getLogin()).slash(repository.getName());
             result.add(builder.toString());
         }

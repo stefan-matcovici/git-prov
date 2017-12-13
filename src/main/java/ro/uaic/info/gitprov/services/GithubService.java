@@ -4,11 +4,14 @@ import org.apache.log4j.Logger;
 import org.eclipse.egit.github.core.Repository;
 import org.eclipse.egit.github.core.SearchRepository;
 import org.eclipse.egit.github.core.client.GitHubClient;
+import org.eclipse.egit.github.core.client.PageIterator;
 import org.eclipse.egit.github.core.service.RepositoryService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import javax.annotation.PostConstruct;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -46,8 +49,11 @@ public class GithubService {
      */
     public GithubService() {
         client = new GitHubClient();
-        client.setOAuth2Token(githubToken);
+    }
 
+    @PostConstruct
+    public void init() {
+        client.setOAuth2Token(githubToken);
         repositoryService = new RepositoryService(client);
     }
 
@@ -91,6 +97,10 @@ public class GithubService {
      */
     public Collection<Repository> getAllRepositoriesByUser(String user) throws IOException {
         return repositoryService.getRepositories(user);
+    }
+
+    public Collection<Repository> getAllRepositoriesByOrganization(String organization) throws IOException {
+        return repositoryService.getOrgRepositories(organization);
     }
 
 }
