@@ -64,13 +64,13 @@ public class GithubService {
     /**
      * Gets a the repository identified by user that created it and its name
      *
-     * @param user           the user
+     * @param owner          the owner
      * @param repositoryName the searched repository name
      * @return the repository identified by user and repositoryName
      * @throws IOException exception
      */
-    public Repository getRepositoryByUserAndName(String user, String repositoryName) throws IOException {
-        return repositoryService.getRepository(user, repositoryName);
+    public Repository getRepositoryByOwnerAndName(String owner, String repositoryName) throws IOException {
+        return repositoryService.getRepository(owner, repositoryName);
     }
 
     /**

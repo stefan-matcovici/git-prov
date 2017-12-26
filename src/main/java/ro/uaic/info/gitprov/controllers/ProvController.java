@@ -22,7 +22,7 @@ import java.util.Map;
  * The Prov controller.
  */
 @Controller
-@RequestMapping(value = "/repositories")
+@RequestMapping(value = "/repos")
 public class ProvController {
     @Autowired
     private GithubService githubService;
@@ -40,7 +40,7 @@ public class ProvController {
      * @return the repository by query string
      * @throws IOException the io exception
      */
-    @RequestMapping(value = "", method = RequestMethod.GET)
+    @RequestMapping(value = "/search", method = RequestMethod.GET)
     @ResponseBody
     HttpEntity<List<String>> getRepositoryByQueryString(HttpServletRequest request) throws IOException {
         Map<String, String[]> requestParameters = request.getParameterMap();
@@ -50,7 +50,7 @@ public class ProvController {
             return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         } else {
             for (SearchRepository repository : githubService.getRepositoryByQueryParameters(requestParameters)) {
-                ControllerLinkBuilder builder = ControllerLinkBuilder.linkTo(ProvController.class).slash(repository.getOwner()).slash(repository.getName());
+                ControllerLinkBuilder builder = ControllerLinkBuilder.linkTo(ProvController.class).slash("owner").slash(repository.getOwner()).slash(repository.getName());
                 result.add(builder.toString());
             }
         }
@@ -61,15 +61,15 @@ public class ProvController {
     /**
      * Gets repository by user and name.
      *
-     * @param user the user
+     * @param owner the owner
      * @param name the name
      * @return the repository by user and name
      * @throws IOException the io exception
      */
-    @RequestMapping(value = "/{user}/{name}", method = RequestMethod.GET)
+    @RequestMapping(value = "/owner/{owner}/{name}", method = RequestMethod.GET)
     @ResponseBody
-    HttpEntity<?> getRepositoryByUserAndName(@PathVariable String user, @PathVariable String name) throws IOException {
-        Repository repository = githubService.getRepositoryByUserAndName(user, name);
+    HttpEntity<?> getRepositoryByUserAndName(@PathVariable String owner, @PathVariable String name) throws IOException {
+        Repository repository = githubService.getRepositoryByOwnerAndName(owner, name);
         return new ResponseEntity<>(HttpStatus.OK);
     }
 
@@ -85,7 +85,7 @@ public class ProvController {
     HttpEntity<List<String>> getAllRepositoriesByOrganization(@PathVariable String organization) throws IOException {
         List<String> result = new ArrayList<>();
         for (Repository repository : githubService.getAllRepositoriesByOrganization(organization)) {
-            ControllerLinkBuilder builder = ControllerLinkBuilder.linkTo(ProvController.class).slash(repository.getOwner().getLogin()).slash(repository.getName());
+            ControllerLinkBuilder builder = ControllerLinkBuilder.linkTo(ProvController.class).slash("owner").slash(organization).slash(repository.getName());
             result.add(builder.toString());
         }
 
@@ -104,7 +104,7 @@ public class ProvController {
     HttpEntity<List<String>> getAllRepositoriesByUser(@PathVariable String user) throws IOException {
         List<String> result = new ArrayList<>();
         for (Repository repository : githubService.getAllRepositoriesByUser(user)) {
-            ControllerLinkBuilder builder = ControllerLinkBuilder.linkTo(ProvController.class).slash(repository.getOwner().getLogin()).slash(repository.getName());
+            ControllerLinkBuilder builder = ControllerLinkBuilder.linkTo(ProvController.class).slash("owner").slash(repository.getOwner().getLogin()).slash(repository.getName());
             result.add(builder.toString());
         }
 
