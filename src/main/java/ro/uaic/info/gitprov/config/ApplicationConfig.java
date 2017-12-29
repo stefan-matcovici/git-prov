@@ -1,5 +1,10 @@
 package ro.uaic.info.gitprov.config;
 
+import org.apache.log4j.Logger;
+import org.eclipse.egit.github.core.client.GitHubClient;
+import org.eclipse.egit.github.core.service.ContentsService;
+import org.eclipse.egit.github.core.service.DataService;
+import org.eclipse.egit.github.core.service.RepositoryService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -12,19 +17,29 @@ import org.springframework.core.env.Environment;
 @Configuration
 @PropertySource("classpath:application.properties")
 public class ApplicationConfig {
-    /**
-     * The Environment
-     */
-    @Autowired
-    Environment env;
 
-    /**
-     * Github token string.
-     *
-     * @return the string
-     */
+    final static Logger logger = Logger.getLogger(ApplicationConfig.class);
+
+    private GitHubClient gitHubClient;
+
+    @Autowired
+    public ApplicationConfig(Environment environment) {
+        gitHubClient = new GitHubClient();
+        gitHubClient.setOAuth2Token(environment.getProperty("github.token"));
+    }
+
     @Bean
-    public String githubToken() {
-        return env.getProperty("github.token");
+    public RepositoryService repositoryService() {
+        return new RepositoryService(gitHubClient);
+    }
+
+    @Bean
+    public ContentsService contentsService() {
+        return new ContentsService(gitHubClient);
+    }
+
+    @Bean
+    public DataService dataService() {
+        return new DataService(gitHubClient);
     }
 }

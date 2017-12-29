@@ -3,12 +3,10 @@ package ro.uaic.info.gitprov.services;
 import org.apache.log4j.Logger;
 import org.eclipse.egit.github.core.Repository;
 import org.eclipse.egit.github.core.SearchRepository;
-import org.eclipse.egit.github.core.client.GitHubClient;
 import org.eclipse.egit.github.core.service.RepositoryService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import javax.annotation.PostConstruct;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.HashMap;
@@ -29,36 +27,15 @@ public class GithubService {
     final static Logger logger = Logger.getLogger(GithubService.class);
 
     /**
-     * The github client that authenticates the application on Github
-     */
-    private GitHubClient client;
-
-    /**
      * The repository service that is used to retrieve repositories
      */
-    private RepositoryService repositoryService;
-
-    /**
-     * The token used to authenticate for more requests to the api
-     */
     @Autowired
-    private String githubToken;
+    private RepositoryService repositoryService;
 
     /**
      * Instantiates a new Github service.
      */
     public GithubService() {
-        client = new GitHubClient();
-    }
-
-    /**
-     * Sets up the github client with token from properties file and the repository service that will be used to fetch
-     * data about repositories. Added after constructor in order to let Spring get the token from properties file first
-     */
-    @PostConstruct
-    public void init() {
-        client.setOAuth2Token(githubToken);
-        repositoryService = new RepositoryService(client);
     }
 
     /**
