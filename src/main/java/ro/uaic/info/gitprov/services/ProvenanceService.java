@@ -6,6 +6,7 @@ import org.eclipse.egit.github.core.RepositoryCommit;
 import org.eclipse.egit.github.core.service.CommitService;
 import org.eclipse.egit.github.core.service.ContentsService;
 import org.eclipse.egit.github.core.service.DataService;
+import org.eclipse.egit.github.core.service.RepositoryService;
 import org.openprovenance.prov.interop.InteropFramework;
 import org.openprovenance.prov.model.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,49 +32,57 @@ public class ProvenanceService {
     @Autowired
     public DataService dataService;
 
-    public static final String PROVBOOK_NS = "http://www.provbook.org/";
-    public static final String PROVBOOK_PREFIX = "provbook";
+    public static final String PROVENANCE_PREFIX = "gitprov";
+    private final ProvFactory provFactory = InteropFramework.newXMLProvFactory();
+    private final Namespace namespace;
+
     public static final String FOAF_NS = "http://xmlns.com/foaf/0.1/";
     public static final String FOAF_PREFIX = "foaf";
-    private final ProvFactory pFactory = InteropFramework.newXMLProvFactory();
-    private final Namespace ns;
     @Autowired
     public CommitService commitService;
-    InteropFramework intF = new InteropFramework();
+    @Autowired
+    public RepositoryService repositoryService;
+    InteropFramework interopFramework = new InteropFramework();
+    QualifiedNameUtils qualifiedNameUtils = new QualifiedNameUtils();
 
     public ProvenanceService() {
-        ns = new Namespace();
-        ns.addKnownNamespaces();
-        ns.register(PROVBOOK_PREFIX, PROVBOOK_NS);
-        ns.register(FOAF_PREFIX, FOAF_NS);
+        namespace = new Namespace();
+        namespace.addKnownNamespaces();
+        namespace.register(FOAF_PREFIX, FOAF_NS);
     }
 
     public QualifiedName getQualifiedName(String name, String prefix) {
-        return ns.qualifiedName(prefix, name, pFactory);
+
+        return namespace.qualifiedName(prefix, qualifiedNameUtils.escapeToXsdLocalName(name.replace(' ', '-')), provFactory);
     }
 
-    public String repositoryToDocument(Repository repository) throws IOException {
+    public String repositoryToDocument(Repository repository, String provenanceNs) throws IOException {
+        namespace.register(PROVENANCE_PREFIX, provenanceNs);
+
         List<RepositoryCommit> repositoryCommits = commitService.getCommits(repository);
         List<Agent> agents = new ArrayList<>();
-        String authorName, authorEmail;
+        String authorName, authorEmail, authorLogin;
 
         for (RepositoryCommit repositoryCommit : repositoryCommits) {
-            authorName = repositoryCommit.getCommit().getAuthor().getName();
+            authorLogin = repositoryCommit.getCommitter().getLogin();
             authorEmail = repositoryCommit.getCommit().getAuthor().getEmail();
+            authorName = repositoryCommit.getCommit().getAuthor().getName();
 
             List<Attribute> attributes = new ArrayList<>();
-            attributes.add(pFactory.newAttribute(FOAF_NS, "email", FOAF_PREFIX, authorEmail, getQualifiedName("string", "xsd")));
+            attributes.add(provFactory.newAttribute(FOAF_NS, "name", FOAF_PREFIX, authorName, provFactory.getName().XSD_STRING));
+            attributes.add(provFactory.newAttribute(FOAF_NS, "email", FOAF_PREFIX, authorEmail, provFactory.getName().XSD_STRING));
 
-            Agent agent = pFactory.newAgent(getQualifiedName(authorName, PROVBOOK_PREFIX), attributes);
+            Agent agent = provFactory.newAgent(getQualifiedName(authorLogin, PROVENANCE_PREFIX), attributes);
             agents.add(agent);
         }
 
-        Document document = pFactory.newDocument();
-        document.setNamespace(ns);
+
+        Document document = provFactory.newDocument();
+        document.setNamespace(namespace);
 
         OutputStream os = new ByteArrayOutputStream();
         document.getStatementOrBundle().addAll(agents);
-        intF.writeDocument(os, InteropFramework.ProvFormat.RDFXML, document);
+        interopFramework.writeDocument(os, InteropFramework.ProvFormat.RDFXML, document);
 
         System.out.println(os.toString());
 

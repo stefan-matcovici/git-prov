@@ -73,12 +73,12 @@ public class ProvController {
      * @return the repository by user and name
      * @throws IOException the io exception
      */
-    @RequestMapping(value = "/owner/{owner}/{name}", method = RequestMethod.GET)
+    @RequestMapping(value = "/owner/{owner}/{name}", method = RequestMethod.GET, produces = {"application/xml", "application/rdf+xml"})
     @ResponseBody
     HttpEntity<?> getRepositoryByUserAndName(@PathVariable String owner, @PathVariable String name) throws IOException {
         Repository repository = githubService.getRepositoryByOwnerAndName(owner, name);
-        provenanceService.repositoryToDocument(repository);
-        return new ResponseEntity<>(HttpStatus.OK);
+        String result = provenanceService.repositoryToDocument(repository, ControllerLinkBuilder.linkTo(ProvController.class).slash("owner").slash(owner).slash(name).toString() + "#");
+        return new ResponseEntity<>(result, HttpStatus.OK);
     }
 
     /**
