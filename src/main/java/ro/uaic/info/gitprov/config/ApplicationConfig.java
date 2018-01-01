@@ -2,6 +2,7 @@ package ro.uaic.info.gitprov.config;
 
 import org.apache.log4j.Logger;
 import org.eclipse.egit.github.core.client.GitHubClient;
+import org.eclipse.egit.github.core.service.CommitService;
 import org.eclipse.egit.github.core.service.ContentsService;
 import org.eclipse.egit.github.core.service.DataService;
 import org.eclipse.egit.github.core.service.RepositoryService;
@@ -41,5 +42,10 @@ public class ApplicationConfig {
     @Bean
     public DataService dataService() {
         return new DataService(gitHubClient);
+    }
+
+    @Bean
+    public CommitService commitService() {
+        return new CommitService(gitHubClient);
     }
 }
