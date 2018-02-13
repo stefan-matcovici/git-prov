@@ -3,6 +3,7 @@ package ro.uaic.info.gitprov.services;
 import org.apache.log4j.Logger;
 import org.eclipse.egit.github.core.Repository;
 import org.eclipse.egit.github.core.RepositoryCommit;
+import org.eclipse.egit.github.core.RepositoryContents;
 import org.eclipse.egit.github.core.service.CommitService;
 import org.eclipse.egit.github.core.service.ContentsService;
 import org.eclipse.egit.github.core.service.DataService;
@@ -65,6 +66,12 @@ public class ProvenanceService {
         List<Entity> entities = new ArrayList<>();
         List<WasAssociatedWith> wasAssociatedWiths = new ArrayList<>();
 
+        // TODO create agents from contributors list, it's faster!
+        // List<Contributor> contributors = repositoryService.getContributors(repository, false);
+
+        // TODO refactor at least or find a way of implementing with streams
+        processAllEntities(repository, entities);
+
         for (RepositoryCommit repositoryCommit : repositoryCommits) {
             Agent agent = processAgent(repositoryCommit, agents);
             Activity activity = processActivity(repositoryCommit);
@@ -79,11 +86,54 @@ public class ProvenanceService {
         document.getStatementOrBundle().addAll(activities);
         document.getStatementOrBundle().addAll(agents);
         document.getStatementOrBundle().addAll(wasAssociatedWiths);
+        document.getStatementOrBundle().addAll(entities);
         interopFramework.writeDocument(os, InteropFramework.ProvFormat.JSON, document);
 
-        System.out.println(os.toString());
-
         return os.toString();
+    }
+
+    private void processAllEntities(Repository repository, List<Entity> entities) throws IOException {
+        List<RepositoryContents> contents = contentsService.getContents(repository);
+
+        for (RepositoryContents content : contents) {
+            String type = content.getType();
+            switch (type) {
+                case RepositoryContents.TYPE_FILE:
+                    entities.add(processEntityFile(content));
+                    break;
+                case RepositoryContents.TYPE_DIR:
+                    processEntityDirectory(content, repository, entities);
+                    break;
+                default:
+                    logger.warn(content.getName());
+                    break;
+            }
+        }
+    }
+
+    private void processEntityDirectory(RepositoryContents directory, Repository repository, List<Entity> entities) throws IOException {
+        List<RepositoryContents> contents = contentsService.getContents(repository, directory.getPath());
+
+        for (RepositoryContents content : contents) {
+            String type = content.getType();
+            switch (type) {
+                case RepositoryContents.TYPE_FILE:
+                    entities.add(processEntityFile(content));
+                    break;
+                case RepositoryContents.TYPE_DIR:
+                    processEntityDirectory(content, repository, entities);
+                    break;
+                default:
+                    logger.warn(content.getName() + " : " + content.getType());
+                    break;
+            }
+        }
+
+    }
+
+    private Entity processEntityFile(RepositoryContents content) {
+        // TODO find a way to register as much info into a entity record
+        return provFactory.newEntity(getQualifiedName("file-" + content.getPath().replace('.', '-'), PROVENANCE_PREFIX), content.getSha());
     }
 
     private Activity processActivity(RepositoryCommit repositoryCommit) {
