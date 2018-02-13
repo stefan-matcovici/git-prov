@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class ProvenanceService {
@@ -52,7 +53,6 @@ public class ProvenanceService {
     }
 
     public QualifiedName getQualifiedName(String name, String prefix) {
-
         return namespace.qualifiedName(prefix, qualifiedNameUtils.escapeToXsdLocalName(name.replace(' ', '-')), provFactory);
     }
 
@@ -61,31 +61,70 @@ public class ProvenanceService {
 
         List<RepositoryCommit> repositoryCommits = commitService.getCommits(repository);
         List<Agent> agents = new ArrayList<>();
-        String authorName, authorEmail, authorLogin;
+        List<Activity> activities = new ArrayList<>();
+        List<Entity> entities = new ArrayList<>();
+        List<WasAssociatedWith> wasAssociatedWiths = new ArrayList<>();
 
         for (RepositoryCommit repositoryCommit : repositoryCommits) {
-            authorLogin = repositoryCommit.getCommitter().getLogin();
-            authorEmail = repositoryCommit.getCommit().getAuthor().getEmail();
-            authorName = repositoryCommit.getCommit().getAuthor().getName();
-
-            List<Attribute> attributes = new ArrayList<>();
-            attributes.add(provFactory.newAttribute(FOAF_NS, "name", FOAF_PREFIX, authorName, provFactory.getName().XSD_STRING));
-            attributes.add(provFactory.newAttribute(FOAF_NS, "email", FOAF_PREFIX, authorEmail, provFactory.getName().XSD_STRING));
-
-            Agent agent = provFactory.newAgent(getQualifiedName(authorLogin, PROVENANCE_PREFIX), attributes);
-            agents.add(agent);
+            Agent agent = processAgent(repositoryCommit, agents);
+            Activity activity = processActivity(repositoryCommit);
+            processWasAssociatedWith(repositoryCommit, agent, activity, wasAssociatedWiths);
+            activities.add(activity);
         }
-
 
         Document document = provFactory.newDocument();
         document.setNamespace(namespace);
 
         OutputStream os = new ByteArrayOutputStream();
+        document.getStatementOrBundle().addAll(activities);
         document.getStatementOrBundle().addAll(agents);
-        interopFramework.writeDocument(os, InteropFramework.ProvFormat.RDFXML, document);
+        document.getStatementOrBundle().addAll(wasAssociatedWiths);
+        interopFramework.writeDocument(os, InteropFramework.ProvFormat.JSON, document);
 
         System.out.println(os.toString());
 
         return os.toString();
+    }
+
+    private Activity processActivity(RepositoryCommit repositoryCommit) {
+        return provFactory.newActivity(getQualifiedName("commit-" + repositoryCommit.getSha(), PROVENANCE_PREFIX), repositoryCommit.getCommit().getMessage());
+    }
+
+    private WasAssociatedWith processWasAssociatedWith(RepositoryCommit repositoryCommit, Agent agent, Activity activity, List<WasAssociatedWith> wasAssociatedWiths) {
+        final QualifiedName activityQualifiedName = activity.getId();
+        final QualifiedName agentQualifiedName = agent.getId();
+        List<Attribute> attributes = new ArrayList<>();
+        WasAssociatedWith wasAssociatedWithResult;
+
+        wasAssociatedWithResult = provFactory.newWasAssociatedWith(getQualifiedName("association-" + repositoryCommit.getSha(), PROVENANCE_PREFIX), activityQualifiedName, agentQualifiedName, null, attributes);
+        wasAssociatedWiths.add(wasAssociatedWithResult);
+
+        return wasAssociatedWithResult;
+    }
+
+    private Agent processAgent(RepositoryCommit repositoryCommit, List<Agent> agents) {
+        final String authorName, authorEmail, authorLogin, authorUrl;
+        Agent result;
+
+        authorLogin = repositoryCommit.getCommitter().getLogin();
+        authorEmail = repositoryCommit.getCommit().getAuthor().getEmail();
+        authorName = repositoryCommit.getCommit().getAuthor().getName();
+        authorUrl = repositoryCommit.getCommitter().getHtmlUrl();
+
+        List<Agent> filteredAgents = agents.stream().filter(agent -> agent.getId().getLocalPart().equals(authorLogin)).collect(Collectors.toList());
+        if (filteredAgents.size() != 0) {
+            result = filteredAgents.get(0);
+        } else {
+            List<Attribute> attributes = new ArrayList<>();
+            attributes.add(provFactory.newAttribute(FOAF_NS, "name", FOAF_PREFIX, authorName, provFactory.getName().XSD_STRING));
+            attributes.add(provFactory.newAttribute(FOAF_NS, "email", FOAF_PREFIX, authorEmail, provFactory.getName().XSD_STRING));
+            attributes.add(provFactory.newAttribute(FOAF_NS, "homepage", FOAF_PREFIX, authorUrl, provFactory.getName().XSD_STRING));
+
+            result = provFactory.newAgent(getQualifiedName(authorLogin, PROVENANCE_PREFIX), attributes);
+            agents.add(result);
+        }
+
+        return result;
+
     }
 }
