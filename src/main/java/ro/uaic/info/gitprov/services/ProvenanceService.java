@@ -14,10 +14,15 @@ import org.openprovenance.prov.model.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import javax.xml.datatype.DatatypeConfigurationException;
+import javax.xml.datatype.DatatypeFactory;
+import javax.xml.datatype.XMLGregorianCalendar;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayList;
+import java.util.Date;
+import java.util.GregorianCalendar;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -73,6 +78,8 @@ public class ProvenanceService {
         List<WasAssociatedWith> wasAssociatedWiths = new ArrayList<>();
         List<SpecializationOf> specializationOfs = new ArrayList<>();
         List<CommitFile> commitFiles;
+        List<WasGeneratedBy> wasGeneratedBies = new ArrayList<>();
+        List<WasInvalidatedBy> wasInvalidatedBies = new ArrayList<>();
 
         // TODO create agents from contributors list, it's faster!
 //        processAllAgents(repository, agents);
@@ -86,6 +93,13 @@ public class ProvenanceService {
             commitFiles.forEach(commitFile -> {
                 Entity newEntity = processEntity(getStandardizedSpecializedFilename(getStandardizedBaseFilename(commitFile.getFilename()), repositoryCommit.getSha()), commitFile.getFilename());
                 processFile(commitFile.getFilename(), repositoryCommit.getSha(), newEntity, specializationOfs, baseEntities);
+                String status = commitFile.getStatus();
+                switch (status) {
+                    case "added":
+                        processGeneratedBy(repositoryCommit.getSha(), repositoryCommit.getCommit().getAuthor().getDate(), newEntity, activity, wasGeneratedBies);
+                    case "removed":
+                        processInvalidatedBy(repositoryCommit.getSha(), repositoryCommit.getCommit().getAuthor().getDate(), newEntity, activity, wasInvalidatedBies);
+                }
                 entities.add(newEntity);
             });
 
@@ -102,9 +116,40 @@ public class ProvenanceService {
         document.getStatementOrBundle().addAll(entities);
         document.getStatementOrBundle().addAll(baseEntities);
         document.getStatementOrBundle().addAll(specializationOfs);
+        document.getStatementOrBundle().addAll(wasGeneratedBies);
+        document.getStatementOrBundle().addAll(wasInvalidatedBies);
         interopFramework.writeDocument(os, InteropFramework.ProvFormat.JSON, document);
 
         return os.toString();
+    }
+
+    private void processInvalidatedBy(String sha, Date date, Entity newEntity, Activity activity, List<WasInvalidatedBy> wasInvalidatedBies) {
+        WasInvalidatedBy wasInvalidatedBy;
+        try {
+            GregorianCalendar gregorianCalendar = new GregorianCalendar();
+            gregorianCalendar.setTime(date);
+            XMLGregorianCalendar time = DatatypeFactory.newInstance().newXMLGregorianCalendar(gregorianCalendar);
+            wasInvalidatedBy = provFactory.newWasInvalidatedBy(getQualifiedName("generation" + sha, PROVENANCE_PREFIX), newEntity.getId(), activity.getId(), time, null);
+        } catch (DatatypeConfigurationException e) {
+            wasInvalidatedBy = provFactory.newWasInvalidatedBy(getQualifiedName("generation" + sha, PROVENANCE_PREFIX), newEntity.getId(), activity.getId());
+        }
+
+        wasInvalidatedBies.add(wasInvalidatedBy);
+    }
+
+    private void processGeneratedBy(String sha, Date date, Entity newEntity, Activity activity, List<WasGeneratedBy> wasGeneratedBies) {
+
+        WasGeneratedBy wasGeneratedBy;
+        try {
+            GregorianCalendar gregorianCalendar = new GregorianCalendar();
+            gregorianCalendar.setTime(date);
+            XMLGregorianCalendar time = DatatypeFactory.newInstance().newXMLGregorianCalendar(gregorianCalendar);
+            wasGeneratedBy = provFactory.newWasGeneratedBy(getQualifiedName("generation" + sha, PROVENANCE_PREFIX), newEntity.getId(), activity.getId(), time, null);
+        } catch (DatatypeConfigurationException e) {
+            wasGeneratedBy = provFactory.newWasGeneratedBy(getQualifiedName("generation" + sha, PROVENANCE_PREFIX), newEntity.getId(), activity.getId());
+        }
+
+        wasGeneratedBies.add(wasGeneratedBy);
     }
 
     private String getStandardizedSpecializedFilename(String standardizedBaseFilename, String sha) {
