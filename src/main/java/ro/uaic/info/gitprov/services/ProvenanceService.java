@@ -1,9 +1,10 @@
 package ro.uaic.info.gitprov.services;
 
 import org.apache.log4j.Logger;
+import org.eclipse.egit.github.core.CommitFile;
+import org.eclipse.egit.github.core.Contributor;
 import org.eclipse.egit.github.core.Repository;
 import org.eclipse.egit.github.core.RepositoryCommit;
-import org.eclipse.egit.github.core.RepositoryContents;
 import org.eclipse.egit.github.core.service.CommitService;
 import org.eclipse.egit.github.core.service.ContentsService;
 import org.eclipse.egit.github.core.service.DataService;
@@ -40,6 +41,10 @@ public class ProvenanceService {
 
     public static final String FOAF_NS = "http://xmlns.com/foaf/0.1/";
     public static final String FOAF_PREFIX = "foaf";
+
+    public static final String DCMI_NS = "http://purl.org/dc/terms/";
+    public static final String DCMI_PREFIX = "dcterms";
+
     @Autowired
     public CommitService commitService;
     @Autowired
@@ -54,7 +59,7 @@ public class ProvenanceService {
     }
 
     public QualifiedName getQualifiedName(String name, String prefix) {
-        return namespace.qualifiedName(prefix, qualifiedNameUtils.escapeToXsdLocalName(name.replace(' ', '-')), provFactory);
+        return namespace.qualifiedName(prefix, qualifiedNameUtils.escapeToXsdLocalName(name), provFactory);
     }
 
     public String repositoryToDocument(Repository repository, String provenanceNs) throws IOException {
@@ -64,18 +69,26 @@ public class ProvenanceService {
         List<Agent> agents = new ArrayList<>();
         List<Activity> activities = new ArrayList<>();
         List<Entity> entities = new ArrayList<>();
+        List<Entity> baseEntities = new ArrayList<>();
         List<WasAssociatedWith> wasAssociatedWiths = new ArrayList<>();
+        List<SpecializationOf> specializationOfs = new ArrayList<>();
+        List<CommitFile> commitFiles;
 
         // TODO create agents from contributors list, it's faster!
-        // List<Contributor> contributors = repositoryService.getContributors(repository, false);
-
-        // TODO refactor at least or find a way of implementing with streams
-        processAllEntities(repository, entities);
+//        processAllAgents(repository, agents);
 
         for (RepositoryCommit repositoryCommit : repositoryCommits) {
             Agent agent = processAgent(repositoryCommit, agents);
             Activity activity = processActivity(repositoryCommit);
             processWasAssociatedWith(repositoryCommit, agent, activity, wasAssociatedWiths);
+
+            commitFiles = commitService.getCommit(repository, repositoryCommit.getSha()).getFiles();
+            commitFiles.forEach(commitFile -> {
+                Entity newEntity = processEntity(getStandardizedSpecializedFilename(getStandardizedBaseFilename(commitFile.getFilename()), repositoryCommit.getSha()), commitFile.getFilename());
+                processFile(commitFile.getFilename(), repositoryCommit.getSha(), newEntity, specializationOfs, baseEntities);
+                entities.add(newEntity);
+            });
+
             activities.add(activity);
         }
 
@@ -87,53 +100,60 @@ public class ProvenanceService {
         document.getStatementOrBundle().addAll(agents);
         document.getStatementOrBundle().addAll(wasAssociatedWiths);
         document.getStatementOrBundle().addAll(entities);
+        document.getStatementOrBundle().addAll(baseEntities);
+        document.getStatementOrBundle().addAll(specializationOfs);
         interopFramework.writeDocument(os, InteropFramework.ProvFormat.JSON, document);
 
         return os.toString();
     }
 
-    private void processAllEntities(Repository repository, List<Entity> entities) throws IOException {
-        List<RepositoryContents> contents = contentsService.getContents(repository);
+    private String getStandardizedSpecializedFilename(String standardizedBaseFilename, String sha) {
+        return standardizedBaseFilename + "_commit-" + sha;
+    }
 
-        for (RepositoryContents content : contents) {
-            String type = content.getType();
-            switch (type) {
-                case RepositoryContents.TYPE_FILE:
-                    entities.add(processEntityFile(content));
-                    break;
-                case RepositoryContents.TYPE_DIR:
-                    processEntityDirectory(content, repository, entities);
-                    break;
-                default:
-                    logger.warn(content.getName());
-                    break;
-            }
+    private String getStandardizedBaseFilename(String filename) {
+        return "file-" + filename.replaceAll("[/\\\\.]", "-");
+    }
+
+    private void processFile(String filename, String sha, Entity newEntity, List<SpecializationOf> specializationOfs, List<Entity> baseEntities) {
+        SpecializationOf specializationOf;
+        String label = newEntity.getLabel().get(0).getValue();
+        Entity baseEntity;
+
+        List<Entity> pastEntities = baseEntities.stream().filter(entity -> entity.getLabel().get(0).getValue().equals(label)).collect(Collectors.toList());
+        if (pastEntities.size() > 0) {
+            baseEntity = pastEntities.get(0);
+        } else {
+            baseEntity = processEntity(getStandardizedBaseFilename(filename), filename);
+            baseEntities.add(baseEntity);
+        }
+
+        specializationOf = provFactory.newSpecializationOf(newEntity.getId(), baseEntity.getId());
+        specializationOfs.add(specializationOf);
+    }
+
+    private void processAllAgents(Repository repository, List<Agent> agents) throws IOException {
+        String authorName, authorImage, authorLogin, authorUrl;
+        Agent agent;
+
+        List<Contributor> contributors = repositoryService.getContributors(repository, false);
+
+        for (Contributor contributor : contributors) {
+            authorName = contributor.getName();
+            authorLogin = contributor.getLogin();
+            authorUrl = contributor.getUrl();
+
+            List<Attribute> attributes = new ArrayList<>();
+            attributes.add(provFactory.newAttribute(FOAF_NS, "name", FOAF_PREFIX, authorName, provFactory.getName().XSD_STRING));
+            attributes.add(provFactory.newAttribute(FOAF_NS, "homepage", FOAF_PREFIX, authorUrl, provFactory.getName().XSD_STRING));
+
+            agent = provFactory.newAgent(getQualifiedName(authorLogin.replace(' ', '-'), PROVENANCE_PREFIX), attributes);
+            agents.add(agent);
         }
     }
 
-    private void processEntityDirectory(RepositoryContents directory, Repository repository, List<Entity> entities) throws IOException {
-        List<RepositoryContents> contents = contentsService.getContents(repository, directory.getPath());
-
-        for (RepositoryContents content : contents) {
-            String type = content.getType();
-            switch (type) {
-                case RepositoryContents.TYPE_FILE:
-                    entities.add(processEntityFile(content));
-                    break;
-                case RepositoryContents.TYPE_DIR:
-                    processEntityDirectory(content, repository, entities);
-                    break;
-                default:
-                    logger.warn(content.getName() + " : " + content.getType());
-                    break;
-            }
-        }
-
-    }
-
-    private Entity processEntityFile(RepositoryContents content) {
-        // TODO find a way to register as much info into a entity record
-        return provFactory.newEntity(getQualifiedName("file-" + content.getPath().replace('.', '-'), PROVENANCE_PREFIX), content.getSha());
+    private Entity processEntity(String name, String label) {
+        return provFactory.newEntity(getQualifiedName(name, PROVENANCE_PREFIX), label);
     }
 
     private Activity processActivity(RepositoryCommit repositoryCommit) {
@@ -146,6 +166,7 @@ public class ProvenanceService {
         List<Attribute> attributes = new ArrayList<>();
         WasAssociatedWith wasAssociatedWithResult;
 
+        // TODO add role
         wasAssociatedWithResult = provFactory.newWasAssociatedWith(getQualifiedName("association-" + repositoryCommit.getSha(), PROVENANCE_PREFIX), activityQualifiedName, agentQualifiedName, null, attributes);
         wasAssociatedWiths.add(wasAssociatedWithResult);
 
@@ -170,7 +191,7 @@ public class ProvenanceService {
             attributes.add(provFactory.newAttribute(FOAF_NS, "email", FOAF_PREFIX, authorEmail, provFactory.getName().XSD_STRING));
             attributes.add(provFactory.newAttribute(FOAF_NS, "homepage", FOAF_PREFIX, authorUrl, provFactory.getName().XSD_STRING));
 
-            result = provFactory.newAgent(getQualifiedName(authorLogin, PROVENANCE_PREFIX), attributes);
+            result = provFactory.newAgent(getQualifiedName(authorLogin.replace(' ', '-'), PROVENANCE_PREFIX), attributes);
             agents.add(result);
         }
 
