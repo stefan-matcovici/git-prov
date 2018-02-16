@@ -1,10 +1,7 @@
 package ro.uaic.info.gitprov.services;
 
 import org.apache.log4j.Logger;
-import org.eclipse.egit.github.core.CommitFile;
-import org.eclipse.egit.github.core.Contributor;
-import org.eclipse.egit.github.core.Repository;
-import org.eclipse.egit.github.core.RepositoryCommit;
+import org.eclipse.egit.github.core.*;
 import org.eclipse.egit.github.core.service.CommitService;
 import org.eclipse.egit.github.core.service.ContentsService;
 import org.eclipse.egit.github.core.service.DataService;
@@ -20,10 +17,7 @@ import javax.xml.datatype.XMLGregorianCalendar;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.GregorianCalendar;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -80,27 +74,44 @@ public class ProvenanceService {
         List<CommitFile> commitFiles;
         List<WasGeneratedBy> wasGeneratedBies = new ArrayList<>();
         List<WasInvalidatedBy> wasInvalidatedBies = new ArrayList<>();
+        List<Used> used = new ArrayList<>();
+
+        Map<String, List<String>> entityVersions = new HashMap<>();
 
         // TODO create agents from contributors list, it's faster!
 //        processAllAgents(repository, agents);
 
+        // Safer but more time consuming
+//        Comparator<RepositoryCommit> byTime = (RepositoryCommit r1, RepositoryCommit r2)->r1.getCommit().getAuthor().getDate().compareTo(r2.getCommit().getAuthor().getDate());
+//        repositoryCommits.sort(byTime);
+        Collections.reverse(repositoryCommits);
         for (RepositoryCommit repositoryCommit : repositoryCommits) {
             Agent agent = processAgent(repositoryCommit, agents);
             Activity activity = processActivity(repositoryCommit);
             processWasAssociatedWith(repositoryCommit, agent, activity, wasAssociatedWiths);
 
-            commitFiles = commitService.getCommit(repository, repositoryCommit.getSha()).getFiles();
+            final String sha = repositoryCommit.getSha();
+            commitFiles = commitService.getCommit(repository, sha).getFiles();
             commitFiles.forEach(commitFile -> {
-                Entity newEntity = processEntity(getStandardizedSpecializedFilename(getStandardizedBaseFilename(commitFile.getFilename()), repositoryCommit.getSha()), commitFile.getFilename());
-                processFile(commitFile.getFilename(), repositoryCommit.getSha(), newEntity, specializationOfs, baseEntities);
+                final String filename = commitFile.getFilename();
+                Entity newEntity = processEntity(getStandardizedSpecializedFilename(filename, sha), filename);
+                processFile(filename, sha, newEntity, specializationOfs, baseEntities);
+
                 String status = commitFile.getStatus();
+                final Date date = repositoryCommit.getCommit().getAuthor().getDate();
                 switch (status) {
                     case "added":
-                        processGeneratedBy(repositoryCommit.getSha(), repositoryCommit.getCommit().getAuthor().getDate(), newEntity, activity, wasGeneratedBies);
+                        processGeneratedBy(sha, date, newEntity, activity, wasGeneratedBies);
+                        break;
                     case "removed":
-                        processInvalidatedBy(repositoryCommit.getSha(), repositoryCommit.getCommit().getAuthor().getDate(), newEntity, activity, wasInvalidatedBies);
+                        processInvalidatedBy(sha, date, newEntity, activity, wasInvalidatedBies);
+                        break;
+                    case "modified":
+                        processUsed(sha, filename, activity, getParentCommitSha(filename, entityVersions), repositoryCommit.getParents(), date, used);
+                        break;
                 }
                 entities.add(newEntity);
+                registerVersion(filename, sha, entityVersions);
             });
 
             activities.add(activity);
@@ -118,42 +129,73 @@ public class ProvenanceService {
         document.getStatementOrBundle().addAll(specializationOfs);
         document.getStatementOrBundle().addAll(wasGeneratedBies);
         document.getStatementOrBundle().addAll(wasInvalidatedBies);
+        document.getStatementOrBundle().addAll(used);
         interopFramework.writeDocument(os, InteropFramework.ProvFormat.JSON, document);
 
         return os.toString();
     }
 
+    private String getParentCommitSha(String filename, Map<String, List<String>> entityVersions) {
+        List<String> list = entityVersions.get(filename);
+        return list.get(list.size() - 1);
+    }
+
+    private void registerVersion(String filename, String sha, Map<String, List<String>> entityVersions) {
+        entityVersions.computeIfAbsent(filename, k -> new ArrayList<>());
+
+        List<String> list = entityVersions.get(filename);
+        list.add(sha);
+    }
+
+    private void processUsed(String sha, String filename, Activity activity, String parentCommitSha, List<Commit> parents, Date date, List<Used> used) {
+        Used u;
+        try {
+            QualifiedName parentEntityQualifiedName;
+            XMLGregorianCalendar time = getXmlGregorianCalendar(date);
+            parentEntityQualifiedName = getQualifiedName(getStandardizedSpecializedFilename(filename, parentCommitSha), PROVENANCE_PREFIX);
+            u = provFactory.newUsed(getQualifiedName("usage-" + sha + "-" + parentCommitSha, PROVENANCE_PREFIX), activity.getId(), parentEntityQualifiedName, time, null);
+        } catch (Exception e) {
+            QualifiedName parentEntityQualifiedName;
+            parentEntityQualifiedName = getQualifiedName(getStandardizedSpecializedFilename(filename, parentCommitSha), PROVENANCE_PREFIX);
+            u = provFactory.newUsed(getQualifiedName("usage-" + sha + "-" + parentCommitSha, PROVENANCE_PREFIX), activity.getId(), parentEntityQualifiedName);
+        }
+
+        used.add(u);
+    }
+
     private void processInvalidatedBy(String sha, Date date, Entity newEntity, Activity activity, List<WasInvalidatedBy> wasInvalidatedBies) {
         WasInvalidatedBy wasInvalidatedBy;
         try {
-            GregorianCalendar gregorianCalendar = new GregorianCalendar();
-            gregorianCalendar.setTime(date);
-            XMLGregorianCalendar time = DatatypeFactory.newInstance().newXMLGregorianCalendar(gregorianCalendar);
-            wasInvalidatedBy = provFactory.newWasInvalidatedBy(getQualifiedName("generation" + sha, PROVENANCE_PREFIX), newEntity.getId(), activity.getId(), time, null);
+            XMLGregorianCalendar time = getXmlGregorianCalendar(date);
+            wasInvalidatedBy = provFactory.newWasInvalidatedBy(getQualifiedName("invalidation-" + sha, PROVENANCE_PREFIX), newEntity.getId(), activity.getId(), time, null);
         } catch (DatatypeConfigurationException e) {
-            wasInvalidatedBy = provFactory.newWasInvalidatedBy(getQualifiedName("generation" + sha, PROVENANCE_PREFIX), newEntity.getId(), activity.getId());
+            wasInvalidatedBy = provFactory.newWasInvalidatedBy(getQualifiedName("invalidation-" + sha, PROVENANCE_PREFIX), newEntity.getId(), activity.getId());
         }
 
         wasInvalidatedBies.add(wasInvalidatedBy);
+    }
+
+    private XMLGregorianCalendar getXmlGregorianCalendar(Date date) throws DatatypeConfigurationException {
+        GregorianCalendar gregorianCalendar = new GregorianCalendar();
+        gregorianCalendar.setTime(date);
+        return DatatypeFactory.newInstance().newXMLGregorianCalendar(gregorianCalendar);
     }
 
     private void processGeneratedBy(String sha, Date date, Entity newEntity, Activity activity, List<WasGeneratedBy> wasGeneratedBies) {
 
         WasGeneratedBy wasGeneratedBy;
         try {
-            GregorianCalendar gregorianCalendar = new GregorianCalendar();
-            gregorianCalendar.setTime(date);
-            XMLGregorianCalendar time = DatatypeFactory.newInstance().newXMLGregorianCalendar(gregorianCalendar);
-            wasGeneratedBy = provFactory.newWasGeneratedBy(getQualifiedName("generation" + sha, PROVENANCE_PREFIX), newEntity.getId(), activity.getId(), time, null);
+            XMLGregorianCalendar time = getXmlGregorianCalendar(date);
+            wasGeneratedBy = provFactory.newWasGeneratedBy(getQualifiedName("generation-" + sha, PROVENANCE_PREFIX), newEntity.getId(), activity.getId(), time, null);
         } catch (DatatypeConfigurationException e) {
-            wasGeneratedBy = provFactory.newWasGeneratedBy(getQualifiedName("generation" + sha, PROVENANCE_PREFIX), newEntity.getId(), activity.getId());
+            wasGeneratedBy = provFactory.newWasGeneratedBy(getQualifiedName("generation-" + sha, PROVENANCE_PREFIX), newEntity.getId(), activity.getId());
         }
 
         wasGeneratedBies.add(wasGeneratedBy);
     }
 
-    private String getStandardizedSpecializedFilename(String standardizedBaseFilename, String sha) {
-        return standardizedBaseFilename + "_commit-" + sha;
+    private String getStandardizedSpecializedFilename(String filename, String sha) {
+        return getStandardizedBaseFilename(filename) + "_commit-" + sha;
     }
 
     private String getStandardizedBaseFilename(String filename) {
