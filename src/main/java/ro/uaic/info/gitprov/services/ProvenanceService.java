@@ -75,6 +75,8 @@ public class ProvenanceService {
         List<WasGeneratedBy> wasGeneratedBies = new ArrayList<>();
         List<WasInvalidatedBy> wasInvalidatedBies = new ArrayList<>();
         List<Used> used = new ArrayList<>();
+        List<WasInformedBy> wasInformedBies = new ArrayList<>();
+        List<WasDerivedFrom> wasDerivedFroms = new ArrayList<>();
 
         Map<String, List<String>> entityVersions = new HashMap<>();
 
@@ -108,6 +110,7 @@ public class ProvenanceService {
                         break;
                     case "modified":
                         processUsed(sha, filename, activity, getParentCommitSha(filename, entityVersions), repositoryCommit.getParents(), date, used);
+                        processWasDerivedFrom(sha, filename, getParentCommitSha(filename, entityVersions), wasDerivedFroms);
                         break;
                 }
                 entities.add(newEntity);
@@ -115,6 +118,8 @@ public class ProvenanceService {
             });
 
             activities.add(activity);
+            processWasInformedBy(sha, activity, repositoryCommit.getParents(), wasInformedBies);
+
         }
 
         Document document = provFactory.newDocument();
@@ -130,9 +135,28 @@ public class ProvenanceService {
         document.getStatementOrBundle().addAll(wasGeneratedBies);
         document.getStatementOrBundle().addAll(wasInvalidatedBies);
         document.getStatementOrBundle().addAll(used);
+        document.getStatementOrBundle().addAll(wasInformedBies);
+        document.getStatementOrBundle().addAll(wasDerivedFroms);
         interopFramework.writeDocument(os, InteropFramework.ProvFormat.JSON, document);
 
         return os.toString();
+    }
+
+    private void processWasDerivedFrom(String sha, String filename, String parentCommitSha, List<WasDerivedFrom> wasDerivedFroms) {
+        QualifiedName generatedEntity = getQualifiedName(getStandardizedSpecializedFilename(filename, sha), PROVENANCE_PREFIX);
+        QualifiedName usedEntity = getQualifiedName(getStandardizedSpecializedFilename(filename, parentCommitSha), PROVENANCE_PREFIX);
+        QualifiedName activity = getQualifiedName("commit-" + sha, PROVENANCE_PREFIX);
+        QualifiedName used = getQualifiedName("usage-" + sha + "-" + parentCommitSha, PROVENANCE_PREFIX);
+        QualifiedName wasDerivedFromId = getQualifiedName("derivation-" + getStandardizedSpecializedFilename(filename, sha) + "-" + parentCommitSha, PROVENANCE_PREFIX);
+        wasDerivedFroms.add(provFactory.newWasDerivedFrom(wasDerivedFromId, generatedEntity, usedEntity, activity, null, used, null));
+    }
+
+    private void processWasInformedBy(String sha, Activity activity, List<Commit> parents, List<WasInformedBy> wasInformedBies) {
+        String parentSha;
+        for (Commit commit : parents) {
+            parentSha = commit.getSha();
+            wasInformedBies.add(provFactory.newWasInformedBy(getQualifiedName("information-" + parentSha + "-" + sha, PROVENANCE_PREFIX), activity.getId(), getQualifiedName("commit-" + parentSha, PROVENANCE_PREFIX)));
+        }
     }
 
     private String getParentCommitSha(String filename, Map<String, List<String>> entityVersions) {
