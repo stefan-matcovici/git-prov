@@ -49,21 +49,6 @@
         </dependency>
 
         <dependency>
-            <groupId>org.openprovenance.prov</groupId>
-            <artifactId>toolbox</artifactId>
-            <version>0.7.1</version>
-
-            <exclusions>
-                <exclusion>
-                    <groupId>org.slf4j</groupId>
-                    <artifactId>slf4j-nop</artifactId>
-                </exclusion>
-            </exclusions>
-
-
-        </dependency>
-
-        <dependency>
             <groupId>io.springfox</groupId>
             <artifactId>springfox-swagger2</artifactId>
             <version>2.6.1</version>
@@ -74,6 +59,16 @@
             <groupId>io.springfox</groupId>
             <artifactId>springfox-swagger-ui</artifactId>
             <version>2.7.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.openprovenance.prov</groupId>
+            <artifactId>prov-model</artifactId>
+            <version>0.7.3</version>
+        </dependency>
+        <dependency>
+            <groupId>org.openprovenance.prov</groupId>
+            <artifactId>prov-interop</artifactId>
+            <version>0.7.3</version>
         </dependency>
 
     </dependencies>
