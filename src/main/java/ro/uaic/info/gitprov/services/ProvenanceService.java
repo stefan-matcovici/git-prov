@@ -178,7 +178,7 @@ public class ProvenanceService {
         document.getStatementOrBundle().addAll(used);
         document.getStatementOrBundle().addAll(wasInformedBies);
         document.getStatementOrBundle().addAll(wasDerivedFroms);
-        interopFramework.writeDocument(os, InteropFramework.ProvFormat.RDFXML, document);
+        interopFramework.writeDocument(os, InteropFramework.ProvFormat.TURTLE, document);
         return os.toString();
     }
 
