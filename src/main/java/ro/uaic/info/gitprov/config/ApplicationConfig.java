@@ -26,7 +26,7 @@ public class ApplicationConfig {
     @Autowired
     public ApplicationConfig(Environment environment) {
         gitHubClient = new GitHubClient();
-        gitHubClient.setOAuth2Token(environment.getProperty("github.token"));
+        gitHubClient.setOAuth2Token(System.getenv().get("github-token"));
     }
 
     @Bean
