@@ -87,7 +87,9 @@ public class ProvenanceService {
     private List<WasDerivedFrom> wasDerivedFroms;
     private Map<String, List<String>> entityVersions;
 
-    private String githubUrl;
+    private String githubRepoUrl;
+    private String githubUserUrl;
+    private String provenanceNs;
 
     /**
      * Instantiates a new Provenance service registering the used namespaces
@@ -107,7 +109,9 @@ public class ProvenanceService {
      * @throws IOException io exception
      */
     public String repositoryToDocument(Repository repository, String provenanceNs) throws IOException {
+        this.provenanceNs = provenanceNs;
         namespace.register(PROVENANCE_PREFIX, provenanceNs);
+        this.provenanceNs = provenanceNs;
 
         List<RepositoryCommit> repositoryCommits = commitService.getCommits(repository);
         List<CommitFile> commitFiles;
@@ -118,30 +122,40 @@ public class ProvenanceService {
 
         Collections.reverse(repositoryCommits);
         for (RepositoryCommit repositoryCommit : repositoryCommits) {
-            final Date authorDate = repositoryCommit.getCommit().getAuthor().getDate();
             final String sha = repositoryCommit.getSha();
-            final String commitMessage = repositoryCommit.getCommit().getMessage();
+
+            Commit commit = repositoryCommit.getCommit();
+
+            final String commitMessage = commit.getMessage();
+
+            final CommitUser commitAuthor = commit.getAuthor();
+            final Date authorDate = commitAuthor.getDate();
+            final String authorName = commitAuthor.getName();
+
 
             Activity activity = processActivity(sha, authorDate, commitMessage);
-            processWasAssociatedWith(repositoryCommit, activity);
+            processWasAssociatedWith(sha, authorName, activity.getId());
+
+            // TODO process startedBy
+            // TODO process endedBy
 
             commitFiles = commitService.getCommit(repository, sha).getFiles();
             commitFiles.forEach((CommitFile commitFile) -> {
                 final String filename = commitFile.getFilename();
                 Entity newEntity = processEntity(getStandardizedSpecializedFilename(filename, sha), filename);
-                Entity baseEntity = processFile(filename, newEntity);
+                processSpecializationOf(filename, newEntity, sha);
 
                 String status = commitFile.getStatus();
                 switch (status) {
                     case "added":
-                        processGeneratedBy(sha, filename, authorDate, newEntity, activity);
+                        processWasGeneratedBy(sha, filename, authorDate, newEntity, activity);
                         break;
                     case "removed":
                         processInvalidatedBy(sha, filename, authorDate, newEntity, activity);
                         break;
                     case "modified":
-                        processGeneratedBy(sha, filename, authorDate, newEntity, activity);
-                        processUsed(sha, filename, activity, authorDate);
+                        processWasGeneratedBy(sha, filename, authorDate, newEntity, activity);
+                        processUsed(sha, filename, authorDate, activity);
                         processWasDerivedFrom(sha, filename);
                         break;
                 }
@@ -176,7 +190,7 @@ public class ProvenanceService {
         document.getStatementOrBundle().addAll(used);
         document.getStatementOrBundle().addAll(wasInformedBies);
         document.getStatementOrBundle().addAll(wasDerivedFroms);
-        interopFramework.writeDocument(os, InteropFramework.ProvFormat.PROVN, document);
+        interopFramework.writeDocument(os, InteropFramework.ProvFormat.RDFXML, document);
         return os.toString();
     }
 
@@ -208,7 +222,8 @@ public class ProvenanceService {
         wasDerivedFroms = new ArrayList<>();
         entityVersions = new HashMap<>();
 
-        githubUrl = "https://github.com/" + owner + "/" + repo;
+        githubUserUrl = "https://github.com/" + owner;
+        githubRepoUrl = githubUserUrl + "/" + repo;
     }
 
     /**
@@ -226,7 +241,7 @@ public class ProvenanceService {
 
 
     private Activity processActivity(String sha, Date date, String commitMessage) {
-        String commitUrl = githubUrl + "/commit/" + sha;
+        String commitUrl = githubRepoUrl + "/commit/" + sha;
         Activity result;
 
         List<Attribute> attributes = new ArrayList<>();
@@ -264,12 +279,13 @@ public class ProvenanceService {
         for (Contributor contributor : contributors) {
             type = contributor.getType();
             authorLogin = contributor.getLogin();
-            authorUrl = contributor.getUrl();
+            authorUrl = githubUserUrl;
 
             List<Attribute> attributes = new ArrayList<>();
-            attributes.add(provFactory.newAttribute(Attribute.AttributeKind.PROV_TYPE, type, provFactory.getName().PROV_TYPE));
+            attributes.add(provFactory.newAttribute(Attribute.AttributeKind.PROV_TYPE, type, provFactory.getName().XSD_STRING));
             attributes.add(provFactory.newAttribute(FOAF_NS, "homepage", FOAF_PREFIX, authorUrl, provFactory.getName().XSD_ANY_URI));
-            attributes.add(provFactory.newAttribute(Attribute.AttributeKind.PROV_LABEL, authorLogin, provFactory.getName().PROV_LABEL));
+            attributes.add(provFactory.newAttribute(Attribute.AttributeKind.PROV_LABEL, authorLogin, provFactory.getName().XSD_STRING));
+            attributes.add(provFactory.newAttribute(provenanceNs, "contributions", PROVENANCE_PREFIX, contributor.getContributions(), provFactory.getName().XSD_INT));
 
             agent = provFactory.newAgent(getQualifiedName(getAuthorLoginLabel(authorLogin), PROVENANCE_PREFIX), attributes);
             this.agents.add(agent);
@@ -287,7 +303,7 @@ public class ProvenanceService {
      * @param filename  the name of the file
      * @param newEntity the previously generated entity corresponding with the filename
      */
-    private Entity processFile(String filename, Entity newEntity) {
+    private void processSpecializationOf(String filename, Entity newEntity, String sha) {
         SpecializationOf specializationOf;
         String label = newEntity.getLabel().get(0).getValue();
         Entity baseEntity;
@@ -301,21 +317,20 @@ public class ProvenanceService {
         }
 
         specializationOf = provFactory.newSpecializationOf(newEntity.getId(), baseEntity.getId());
+        // specializationOf = provFactory.newQualifiedSpecializationOf(getQualifiedName("specialization-"+baseEntity.getLabel().get(0).getValue()+"-"+sha, PROVENANCE_PREFIX), newEntity.getId(), baseEntity.getId(), null);
         specializationOfs.add(specializationOf);
-
-        return baseEntity;
     }
 
     /**
-     * Registers a generatedBy provenance record object
+     * Registers a WasGeneratedBy provenance record object
      *
      * @param sha       the sha of the commit
-     * @param filename
+     * @param filename  the name of the file that was generated
      * @param date      the date of the commit
      * @param newEntity the previously generated entity
      * @param activity  the corresponding activity that generated the entity
      */
-    private void processGeneratedBy(String sha, String filename, Date date, Entity newEntity, Activity activity) {
+    private void processWasGeneratedBy(String sha, String filename, Date date, Entity newEntity, Activity activity) {
 
         WasGeneratedBy wasGeneratedBy;
         try {
@@ -357,7 +372,7 @@ public class ProvenanceService {
      * @param activity the corresponding activity that generated the entity
      * @param date     the date of the commit
      */
-    private void processUsed(String sha, String filename, Activity activity, Date date) {
+    private void processUsed(String sha, String filename, Date date, Activity activity) {
         Used u;
         String parentCommitSha = getParentCommitSha(filename);
         try {
@@ -376,18 +391,17 @@ public class ProvenanceService {
 
     /**
      * Registers an wasAssociated provenance record object
-     *
-     * @param repositoryCommit the commit object that references the targeted repository for provenance record
-     * @param activity         the activity that generated the entity
-     */
-    private void processWasAssociatedWith(RepositoryCommit repositoryCommit, Activity activity) {
-        final QualifiedName activityQualifiedName = activity.getId();
-        final QualifiedName agentQualifiedName = getQualifiedName(getAuthorLoginLabel(repositoryCommit.getCommit().getAuthor().getName()), PROVENANCE_PREFIX);
+     * @param sha the sha of the commit
+     * @param authorName the author's name
+     * @param activityId the qualified name of the activity that generated the entity
+     * */
+    private void processWasAssociatedWith(String sha, String authorName, QualifiedName activityId) {
+        final QualifiedName agentQualifiedName = getQualifiedName(getAuthorLoginLabel(authorName), PROVENANCE_PREFIX);
         List<Attribute> attributes = new ArrayList<>();
         WasAssociatedWith wasAssociatedWithResult;
+        attributes.add(provFactory.newAttribute(Attribute.AttributeKind.PROV_ROLE, "authorship", provFactory.getName().XSD_STRING));
 
-        // TODO add role
-        wasAssociatedWithResult = provFactory.newWasAssociatedWith(getQualifiedName("association-" + repositoryCommit.getSha(), PROVENANCE_PREFIX), activityQualifiedName, agentQualifiedName, null, attributes);
+        wasAssociatedWithResult = provFactory.newWasAssociatedWith(getQualifiedName("association-" + sha, PROVENANCE_PREFIX), activityId, agentQualifiedName, null, attributes);
         wasAssociatedWiths.add(wasAssociatedWithResult);
     }
 
