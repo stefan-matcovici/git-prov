@@ -105,10 +105,11 @@ public class ProvenanceService {
      *
      * @param repository   the repository object that references the targeted repository for provenance
      * @param provenanceNs the provenance namespace, the uri of the resource
+     * @param contentType
      * @return the string
      * @throws IOException io exception
      */
-    public String repositoryToDocument(Repository repository, String provenanceNs) throws IOException {
+    public String repositoryToDocument(Repository repository, String provenanceNs, String contentType) throws IOException {
         this.provenanceNs = provenanceNs;
         namespace.register(PROVENANCE_PREFIX, provenanceNs);
         this.provenanceNs = provenanceNs;
@@ -166,15 +167,16 @@ public class ProvenanceService {
             processWasInformedBy(sha, activity, repositoryCommit.getParents());
         }
 
-        return getDocument();
+        return getDocument(contentType);
     }
 
     /**
      * Constructs the provenance document from the previously populated lists of provenance records objects
      *
      * @return the document
+     * @param contentType
      */
-    private String getDocument() {
+    private String getDocument(String contentType) {
         Document document = provFactory.newDocument();
         document.setNamespace(namespace);
 
@@ -190,7 +192,43 @@ public class ProvenanceService {
         document.getStatementOrBundle().addAll(used);
         document.getStatementOrBundle().addAll(wasInformedBies);
         document.getStatementOrBundle().addAll(wasDerivedFroms);
-        interopFramework.writeDocument(os, InteropFramework.ProvFormat.RDFXML, document);
+
+        InteropFramework.ProvFormat provFormat = null;
+
+        switch (contentType) {
+            case "application/x-turtle":
+                provFormat = InteropFramework.ProvFormat.TURTLE;
+                break;
+            case "application/xml":
+                provFormat = InteropFramework.ProvFormat.XML;
+                break;
+            case "application/rdf+xml":
+                provFormat = InteropFramework.ProvFormat.RDFXML;
+                break;
+            case "application/pdf":
+                provFormat = InteropFramework.ProvFormat.PDF;
+                break;
+            case "application/json":
+                provFormat = InteropFramework.ProvFormat.JSON;
+                break;
+            case "application/msword":
+                provFormat = InteropFramework.ProvFormat.DOT;
+                break;
+            case "image/svg+xml":
+                provFormat = InteropFramework.ProvFormat.SVG;
+                break;
+            case "image/png":
+                provFormat = InteropFramework.ProvFormat.PNG;
+                break;
+            case "image/jpeg":
+                provFormat = InteropFramework.ProvFormat.JPEG;
+                break;
+            case "image/application/trig":
+                provFormat = InteropFramework.ProvFormat.TRIG;
+                break;
+        }
+
+        interopFramework.writeDocument(os, provFormat, document);
         return os.toString();
     }
 
