@@ -196,6 +196,9 @@ public class ProvenanceService {
         InteropFramework.ProvFormat provFormat = null;
 
         switch (contentType) {
+            case "text/provenance-notation":
+                provFormat = InteropFramework.ProvFormat.PROVN;
+                break;
             case "application/x-turtle":
                 provFormat = InteropFramework.ProvFormat.TURTLE;
                 break;
