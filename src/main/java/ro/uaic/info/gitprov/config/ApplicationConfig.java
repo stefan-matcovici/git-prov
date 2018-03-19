@@ -56,6 +56,21 @@ public class ApplicationConfig {
     }
 
     @Bean
+    String provStoreConsumerKey() {
+        return System.getenv().get("provstore-consumer-key");
+    }
+
+    @Bean
+    String provStoreConsumerSecret() {
+        return System.getenv().get("provstore-consumer-secret");
+    }
+
+    @Bean
+    String provStoreOauthServiceUri() {
+        return System.getenv().get("provstore-oauth-service");
+    }
+
+    @Bean
     ObjectMapper objectMapper() {
         return new ObjectMapper();
     }
