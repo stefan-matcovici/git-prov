@@ -1,5 +1,6 @@
 package ro.uaic.info.gitprov.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.log4j.Logger;
 import org.eclipse.egit.github.core.client.GitHubClient;
 import org.eclipse.egit.github.core.service.CommitService;
@@ -47,5 +48,25 @@ public class ApplicationConfig {
     @Bean
     public CommitService commitService() {
         return new CommitService(gitHubClient);
+    }
+
+    @Bean
+    String provStoreApiKey() {
+        return System.getenv().get("provstore-api-key");
+    }
+
+    @Bean
+    String provStoreConsumerKey() {
+        return System.getenv().get("provstore-consumer-key");
+    }
+
+    @Bean
+    String provStoreConsumerSecret() {
+        return System.getenv().get("provstore-consumer-secret");
+    }
+
+    @Bean
+    ObjectMapper objectMapper() {
+        return new ObjectMapper();
     }
 }
