@@ -16,6 +16,7 @@ import ro.uaic.info.gitprov.services.GithubService;
 import ro.uaic.info.gitprov.services.OAuthService;
 import ro.uaic.info.gitprov.services.ProvenanceService;
 
+import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import java.io.IOException;
 import java.util.Map;
@@ -94,7 +95,7 @@ public class ProvStoreController {
 
     @RequestMapping(value = "/oauth-response", method = RequestMethod.GET)
     @ResponseBody
-    void oauthResponse(HttpSession session, @RequestParam("oauth_token") String oauthToken, @RequestParam("oauth_verifier") String oauthVerifier) throws IOException {
+    void oauthResponse(HttpSession session, HttpServletResponse response, @RequestParam("oauth_token") String oauthToken, @RequestParam("oauth_verifier") String oauthVerifier) throws IOException {
         String accessTokenUrl = "https://provenance.ecs.soton.ac.uk/store/oauth/access_token/";
         HttpRequest httpRequest = HttpRequest.get(accessTokenUrl)
                 .header("Authorization", oAuthService.getAccessTokenAuthorizationHeader(oauthToken, oauthVerifier, String.valueOf(session.getAttribute("oauth_token_secret"))));
@@ -104,6 +105,8 @@ public class ProvStoreController {
         session.removeAttribute("oauth_token_secret");
         session.setAttribute("oauth_token_secret", params.get("oauth_token_secret"));
         session.setAttribute("oauth_token", params.get("oauth_token"));
+
+        response.sendRedirect("/swagger-ui.html#!/prov45store45controller/updateUsingPOST");
     }
 
     @RequestMapping(value = "/{owner}/{name}", method = RequestMethod.POST)
