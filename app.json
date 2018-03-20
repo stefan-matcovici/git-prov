@@ -1,14 +1,22 @@
 {
   "name": "git-prov",
-  "scripts": {
-  },
+  "scripts": {},
   "env": {
+    "github-token": {
+      "required": true
+    },
+    "provstore-api-key": {
+      "required": true
+    },
+    "provstore-consumer-key": {
+      "required": true
+    },
+    "provstore-consumer-secret": {
+      "required": true
+    }
   },
-  "formation": {
-  },
-  "addons": [
-
-  ],
+  "formation": {},
+  "addons": [],
   "buildpacks": [
     {
       "url": "heroku/java"
