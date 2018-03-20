@@ -28,8 +28,7 @@ import static ro.uaic.info.gitprov.services.OAuthService.decodeQueryString;
 public class ProvStoreController {
 
     private static final String PROVSTORE_STORE_DOCUMENT = "https://provenance.ecs.soton.ac.uk/store/api/v0/documents/";
-    private final String authorizeUrl = "https://provenance.ecs.soton.ac.uk/store/oauth/authorize/";
-    private final String accessTokenUrl = "https://provenance.ecs.soton.ac.uk/store/oauth/access_token/";
+    private final String JSON_MIME_TYPE = "application/json";
 
     @Autowired
     private GithubService githubService;
@@ -48,16 +47,16 @@ public class ProvStoreController {
 
     @RequestMapping(value = "/owner/{owner}/{name}", method = RequestMethod.POST)
     @ResponseBody
-    HttpEntity<?> getRepositoryByUserAndNameWithApiKey(@PathVariable String owner, @PathVariable String name, @RequestHeader("Content-Type") String contentType) throws IOException {
+    HttpEntity<?> uploadDocumentUsingAppKey(@PathVariable String owner, @PathVariable String name) throws IOException {
         Repository repository = githubService.getRepositoryByOwnerAndName(owner, name);
-        String result = provenanceService.repositoryToDocument(repository, ControllerLinkBuilder.linkTo(ProvController.class).slash("owner").slash(owner).slash(name).toString() + "#", contentType);
+        String result = provenanceService.repositoryToDocument(repository, ControllerLinkBuilder.linkTo(ProvController.class).slash("owner").slash(owner).slash(name).toString() + "#", JSON_MIME_TYPE);
 
         ProvStoreRequestStorage requestStorage = new ProvStoreRequestStorage(owner + "-" + name, true, result);
 
         HttpRequest request = HttpRequest.post(PROVSTORE_STORE_DOCUMENT)
                 .authorization("ApiKey stefan-matcovici:" + provStoreApiKey)
-                .accept("application/json")
-                .contentType("application/json")
+                .accept(JSON_MIME_TYPE)
+                .contentType(JSON_MIME_TYPE)
                 .send(objectMapper.writeValueAsBytes(requestStorage));
 
         int responseCode = request.code();
@@ -73,9 +72,9 @@ public class ProvStoreController {
 
     }
 
-    @RequestMapping(value = "/login", method = RequestMethod.POST)
+    @RequestMapping(value = "/oauth/login", method = RequestMethod.POST)
     @ResponseBody
-    HttpEntity<?> login(HttpSession httpSession) throws IOException {
+    HttpEntity<?> loginByOAuth(HttpSession httpSession) throws IOException {
         String requestTokenUrl = "https://provenance.ecs.soton.ac.uk/store/oauth/request_token/";
         HttpRequest httpRequest = HttpRequest.get(requestTokenUrl)
                 .header("Authorization", oAuthService.getRequestTokenAuthorizationHeader(ControllerLinkBuilder.linkTo(ProvStoreController.class).slash("oauth-response").toString()));
@@ -90,7 +89,7 @@ public class ProvStoreController {
 
     }
 
-    @RequestMapping(value = "/oauth-response", method = RequestMethod.GET)
+    @RequestMapping(value = "/oauth/response", method = RequestMethod.GET)
     @ResponseBody
     void oauthResponse(HttpSession session, HttpServletResponse response, @RequestParam("oauth_token") String oauthToken, @RequestParam("oauth_verifier") String oauthVerifier) throws IOException {
         String accessTokenUrl = "https://provenance.ecs.soton.ac.uk/store/oauth/access_token/";
@@ -106,22 +105,22 @@ public class ProvStoreController {
         response.sendRedirect("/swagger-ui.html#!/prov45store45controller/updateUsingPOST");
     }
 
-    @RequestMapping(value = "/{owner}/{name}", method = RequestMethod.POST)
+    @RequestMapping(value = "/oauth/{owner}/{name}", method = RequestMethod.POST)
     @ResponseBody
-    HttpEntity<?> update(HttpSession session, @PathVariable String owner, @PathVariable String name, @RequestBody UploadDocumentRequest uploadDocumentRequest) throws IOException {
+    HttpEntity<?> uploadDocumentWithOauthCredentials(HttpSession session, @PathVariable String owner, @PathVariable String name, @RequestBody UploadDocumentRequest uploadDocumentRequest) throws IOException {
         String updateDocumentsUrl = "https://provenance.ecs.soton.ac.uk/store/api/v0/documents/";
         String oauthToken = String.valueOf(session.getAttribute("oauth_token"));
         String oauthTokenSecret = String.valueOf(session.getAttribute("oauth_token_secret"));
 
         Repository repository = githubService.getRepositoryByOwnerAndName(owner, name);
-        String result = provenanceService.repositoryToDocument(repository, ControllerLinkBuilder.linkTo(ProvController.class).slash("owner").slash(owner).slash(name).toString() + "#", "application/json");
+        String result = provenanceService.repositoryToDocument(repository, ControllerLinkBuilder.linkTo(ProvController.class).slash("owner").slash(owner).slash(name).toString() + "#", JSON_MIME_TYPE);
 
         ProvStoreRequestStorage requestStorage = new ProvStoreRequestStorage(uploadDocumentRequest.getName(), uploadDocumentRequest.isPublic(), result);
 
         HttpRequest request = HttpRequest.post(updateDocumentsUrl)
                 .header("Authorization", oAuthService.getRequestAuthorizationHeader(oauthToken, oauthTokenSecret, updateDocumentsUrl))
-                .accept("application/json")
-                .contentType("application/json")
+                .accept(JSON_MIME_TYPE)
+                .contentType(JSON_MIME_TYPE)
                 .send(objectMapper.writeValueAsBytes(requestStorage));
 
         int responseCode = request.code();
