@@ -36,11 +36,9 @@ public class OAuthService {
         }
     }
 
-    public String getRequestTokenAuthorizationHeader() throws UnsupportedEncodingException {
+    public String getRequestTokenAuthorizationHeader(String callbackUrl) throws UnsupportedEncodingException {
         String nonce = String.valueOf(((int) (Math.random() * 100000000)));
         long timestamp = System.currentTimeMillis() / 1000;
-
-        String callbackUrl = "http://localhost:8080/store/oauth-response";
 
         return "OAuth " + "oauth_callback=\"" +
                 URLEncoder.encode(callbackUrl, "utf-8") + "\"," +

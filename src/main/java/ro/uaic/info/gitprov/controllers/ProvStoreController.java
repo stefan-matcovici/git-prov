@@ -44,9 +44,6 @@ public class ProvStoreController {
     private ObjectMapper objectMapper;
 
     @Autowired
-    private String provStoreOauthServiceUri;
-
-    @Autowired
     private OAuthService oAuthService;
 
     @RequestMapping(value = "/owner/{owner}/{name}", method = RequestMethod.POST)
@@ -81,7 +78,7 @@ public class ProvStoreController {
     HttpEntity<?> login(HttpSession httpSession) throws IOException {
         String requestTokenUrl = "https://provenance.ecs.soton.ac.uk/store/oauth/request_token/";
         HttpRequest httpRequest = HttpRequest.get(requestTokenUrl)
-                .header("Authorization", oAuthService.getRequestTokenAuthorizationHeader());
+                .header("Authorization", oAuthService.getRequestTokenAuthorizationHeader(ControllerLinkBuilder.linkTo(ProvStoreController.class).slash("oauth-response").toString()));
 
 
         Map<String, String> params = decodeQueryString(httpRequest.body());
