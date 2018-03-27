@@ -9,7 +9,10 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.ResponseBody;
 import ro.uaic.info.gitprov.services.GithubService;
 import ro.uaic.info.gitprov.services.ProvenanceService;
 
@@ -70,10 +73,11 @@ public class ProvController {
      * @return the repository by user and name
      * @throws IOException the io exception
      */
-    @RequestMapping(value = "/owner/{owner}/{name}", method = RequestMethod.GET)
+    @RequestMapping(value = "/owner/{owner}/{name}", method = RequestMethod.GET, produces = {"text/provenance-notation", "application/x-turtle", "application/xml", "application/rdf+xml", "application/pdf", "application/json", "application/msword", "image/svg+xml", "image/png", "image/jpeg", "application/trig"})
     @ResponseBody
-    HttpEntity<?> getRepositoryByUserAndName(@PathVariable String owner, @PathVariable String name, @RequestHeader("Content-Type") String contentType) throws IOException {
+    HttpEntity<?> getRepositoryByUserAndName(HttpServletRequest request, @PathVariable String owner, @PathVariable String name) throws IOException {
         Repository repository = githubService.getRepositoryByOwnerAndName(owner, name);
+        String contentType = request.getHeader("Accept");
         String result = provenanceService.repositoryToDocument(repository, ControllerLinkBuilder.linkTo(ProvController.class).slash("owner").slash(owner).slash(name).toString() + "#", contentType);
         return new ResponseEntity<>(result, HttpStatus.OK);
     }
