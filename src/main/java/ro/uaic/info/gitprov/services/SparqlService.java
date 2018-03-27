@@ -5,6 +5,8 @@ import org.apache.jena.query.*;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.riot.Lang;
+import org.apache.jena.riot.resultset.ResultSetWriterRegistry;
+import org.apache.jena.sparql.resultset.ResultsFormat;
 import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayOutputStream;
@@ -30,6 +32,8 @@ public class SparqlService {
         formatToLangs.put("application/x-turtle", Lang.TURTLE);
         formatToLangs.put("application/rdf+xml", Lang.RDFXML);
         formatToLangs.put("text/plain", Lang.RDFNULL);
+
+        ResultSetWriterRegistry.init();
     }
 
     public String getQueryResult(String document, String query, String format) throws IOException {
@@ -43,11 +47,61 @@ public class SparqlService {
         QueryExecution qe = QueryExecutionFactory.create(qry, model);
 
         ResultSet resultSet = qe.execSelect();
-        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-        String result = ResultSetFormatter.asXMLString(resultSet, null);
+        String result = getResultByFormat(resultSet, format);
         qe.close();
 
         return result;
+    }
+
+    private ResultsFormat getFormat(String format) {
+        ResultsFormat resultsFormat;
+        switch (format) {
+            case "application/sparql-results+xml":
+                resultsFormat = ResultsFormat.FMT_RS_JSON;
+                break;
+            case "application/rdf+xml":
+                resultsFormat = ResultsFormat.FMT_RDF_XML;
+                break;
+            case "text/rdf+n3":
+                resultsFormat = ResultsFormat.FMT_RDF_N3;
+                break;
+            case "application/x-turtle":
+                resultsFormat = ResultsFormat.FMT_RDF_TURTLE;
+                break;
+            case "application/n-triples":
+                resultsFormat = ResultsFormat.FMT_RDF_NT;
+                break;
+            default:
+                resultsFormat = ResultsFormat.FMT_UNKNOWN;
+        }
+
+        return resultsFormat;
+    }
+
+    private String getResultByFormat(ResultSet resultSet, String format) {
+        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        switch (format) {
+            case "text/plain":
+                return ResultSetFormatter.asText(resultSet);
+            case "application/xml":
+                return ResultSetFormatter.asXMLString(resultSet, null);
+            case "text/csv":
+                ResultSetFormatter.outputAsCSV(byteArrayOutputStream, resultSet);
+
+                return byteArrayOutputStream.toString();
+            case "application/json":
+                ResultSetFormatter.outputAsJSON(byteArrayOutputStream, resultSet);
+
+                return byteArrayOutputStream.toString();
+            case "text/tab-separated-values":
+                ResultSetFormatter.outputAsTSV(byteArrayOutputStream, resultSet);
+
+                return byteArrayOutputStream.toString();
+            default:
+                ResultSetFormatter.output(byteArrayOutputStream, resultSet, getFormat(format));
+                return byteArrayOutputStream.toString();
+        }
+
     }
 
     private Model buildModelFromString(String document) throws IOException {

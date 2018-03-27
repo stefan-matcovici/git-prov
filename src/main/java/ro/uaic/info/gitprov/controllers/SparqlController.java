@@ -27,7 +27,7 @@ public class SparqlController {
     @Autowired
     private ProvenanceService provenanceService;
 
-    @RequestMapping(value = "/owner/{owner}/{name}", method = RequestMethod.POST, produces = {"text/csv", "application/ld+json", "application/n-quads", "application/n-triples", "application/json", "application/sparql-results+thrift", "application/trig", "text/tab-separated-values", "application/x-turtle", "application/rdf+xml", "text/plain"})
+    @RequestMapping(value = "/owner/{owner}/{name}", method = RequestMethod.POST, produces = {"text/plain", "application/xml", "text/csv", "application/json", "text/tab-separated-values", "application/sparql-results+xml", "text/rdf+n3", "application/x-turtle", "application/n-triples"})
     @ResponseBody
     HttpEntity<?> executeQuery(HttpServletRequest request, @PathVariable String owner, @PathVariable String name, @RequestBody String query) throws IOException {
         Repository repository = githubService.getRepositoryByOwnerAndName(owner, name);
