@@ -32,8 +32,7 @@ public class SparqlController {
         Repository repository = githubService.getRepositoryByOwnerAndName(owner, name);
         String result = provenanceService.repositoryToDocument(repository, ControllerLinkBuilder.linkTo(ProvController.class).slash("owner").slash(owner).slash(name).toString() + "#", "application/x-turtle");
 
-        sparqlService.executeQuery(result, query);
-        return new ResponseEntity<>(HttpStatus.OK);
+        return new ResponseEntity<>(sparqlService.getQueryResult(result, query), HttpStatus.OK);
 
     }
 }
