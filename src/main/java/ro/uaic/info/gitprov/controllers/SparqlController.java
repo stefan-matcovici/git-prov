@@ -11,6 +11,7 @@ import ro.uaic.info.gitprov.services.GithubService;
 import ro.uaic.info.gitprov.services.ProvenanceService;
 import ro.uaic.info.gitprov.services.SparqlService;
 
+import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
 
 @RestController
@@ -26,13 +27,14 @@ public class SparqlController {
     @Autowired
     private ProvenanceService provenanceService;
 
-    @RequestMapping(value = "/owner/{owner}/{name}", method = RequestMethod.POST)
+    @RequestMapping(value = "/owner/{owner}/{name}", method = RequestMethod.POST, produces = {"text/csv", "application/ld+json", "application/n-quads", "application/n-triples", "application/json", "application/sparql-results+thrift", "application/trig", "text/tab-separated-values", "application/x-turtle", "application/rdf+xml", "text/plain"})
     @ResponseBody
-    HttpEntity<?> executeQuery(@PathVariable String owner, @PathVariable String name, @RequestBody String query) throws IOException {
+    HttpEntity<?> executeQuery(HttpServletRequest request, @PathVariable String owner, @PathVariable String name, @RequestBody String query) throws IOException {
         Repository repository = githubService.getRepositoryByOwnerAndName(owner, name);
         String result = provenanceService.repositoryToDocument(repository, ControllerLinkBuilder.linkTo(ProvController.class).slash("owner").slash(owner).slash(name).toString() + "#", "application/x-turtle");
 
-        return new ResponseEntity<>(sparqlService.getQueryResult(result, query), HttpStatus.OK);
+        String contentType = request.getHeader("Accept");
+        return new ResponseEntity<>(sparqlService.getQueryResult(result, query, contentType), HttpStatus.OK);
 
     }
 }

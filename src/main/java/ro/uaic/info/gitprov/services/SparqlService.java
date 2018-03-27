@@ -4,35 +4,50 @@ import org.apache.commons.io.IOUtils;
 import org.apache.jena.query.*;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
+import org.apache.jena.riot.Lang;
 import org.springframework.stereotype.Service;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.HashMap;
+import java.util.Map;
 
 @Service
 public class SparqlService {
 
-    public String getQueryResult(String document, String query) throws IOException {
-        Model model = buildModelFromString(document);
+    private final Map<String, Lang> formatToLangs = new HashMap<>();
 
-        return executeQuery(model, query);
+    public SparqlService() {
+        formatToLangs.put("text/csv", Lang.CSV);
+        formatToLangs.put("application/ld+json", Lang.JSONLD);
+        formatToLangs.put("application/n-quads", Lang.NQUADS);
+        formatToLangs.put("application/n-triples", Lang.NTRIPLES);
+        formatToLangs.put("application/json", Lang.RDFJSON);
+        formatToLangs.put("application/sparql-results+thrift", Lang.RDFTHRIFT);
+        formatToLangs.put("application/trig", Lang.TRIG);
+        formatToLangs.put("text/tab-separated-values", Lang.TSV);
+        formatToLangs.put("application/x-turtle", Lang.TURTLE);
+        formatToLangs.put("application/rdf+xml", Lang.RDFXML);
+        formatToLangs.put("text/plain", Lang.RDFNULL);
     }
 
-    private String executeQuery(Model model, String query) {
+    public String getQueryResult(String document, String query, String format) throws IOException {
+        Model model = buildModelFromString(document);
+
+        return executeQuery(model, query, format);
+    }
+
+    private String executeQuery(Model model, String query, String format) {
         Query qry = QueryFactory.create(query);
         QueryExecution qe = QueryExecutionFactory.create(qry, model);
 
-        ResultSet rs = qe.execSelect();
-
-        StringBuilder solutionBuilder = new StringBuilder();
-        while (rs.hasNext()) {
-            QuerySolution sol = rs.nextSolution();
-
-            solutionBuilder.append(sol.toString()).append("\n");
-        }
-
+        ResultSet resultSet = qe.execSelect();
+        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        String result = ResultSetFormatter.asXMLString(resultSet, null);
         qe.close();
-        return solutionBuilder.toString();
+
+        return result;
     }
 
     private Model buildModelFromString(String document) throws IOException {

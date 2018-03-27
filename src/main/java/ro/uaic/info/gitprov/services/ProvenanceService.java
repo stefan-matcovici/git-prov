@@ -226,7 +226,7 @@ public class ProvenanceService {
             case "image/jpeg":
                 provFormat = InteropFramework.ProvFormat.JPEG;
                 break;
-            case "image/application/trig":
+            case "application/trig":
                 provFormat = InteropFramework.ProvFormat.TRIG;
                 break;
         }
