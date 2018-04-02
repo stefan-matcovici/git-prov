@@ -77,7 +77,7 @@ public class ProvStoreController {
     HttpEntity<?> loginByOAuth(HttpSession httpSession) throws IOException {
         String requestTokenUrl = "https://provenance.ecs.soton.ac.uk/store/oauth/request_token/";
         HttpRequest httpRequest = HttpRequest.get(requestTokenUrl)
-                .header("Authorization", oAuthService.getRequestTokenAuthorizationHeader(ControllerLinkBuilder.linkTo(ProvStoreController.class).slash("oauth-response").toString()));
+                .header("Authorization", oAuthService.getRequestTokenAuthorizationHeader(ControllerLinkBuilder.linkTo(ProvStoreController.class).slash("oauth").slash("response").toString()));
 
 
         Map<String, String> params = decodeQueryString(httpRequest.body());
