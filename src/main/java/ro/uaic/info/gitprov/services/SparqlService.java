@@ -1,40 +1,17 @@
 package ro.uaic.info.gitprov.services;
 
-import org.apache.commons.io.IOUtils;
 import org.apache.jena.query.*;
 import org.apache.jena.rdf.model.Model;
-import org.apache.jena.rdf.model.ModelFactory;
-import org.apache.jena.riot.Lang;
-import org.apache.jena.riot.resultset.ResultSetWriterRegistry;
 import org.apache.jena.sparql.resultset.ResultsFormat;
 import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.util.HashMap;
-import java.util.Map;
+
+import static ro.uaic.info.gitprov.utils.JenaUtils.buildModelFromString;
 
 @Service
 public class SparqlService {
-
-    private final Map<String, Lang> formatToLangs = new HashMap<>();
-
-    public SparqlService() {
-        formatToLangs.put("text/csv", Lang.CSV);
-        formatToLangs.put("application/ld+json", Lang.JSONLD);
-        formatToLangs.put("application/n-quads", Lang.NQUADS);
-        formatToLangs.put("application/n-triples", Lang.NTRIPLES);
-        formatToLangs.put("application/json", Lang.RDFJSON);
-        formatToLangs.put("application/sparql-results+thrift", Lang.RDFTHRIFT);
-        formatToLangs.put("application/trig", Lang.TRIG);
-        formatToLangs.put("text/tab-separated-values", Lang.TSV);
-        formatToLangs.put("application/x-turtle", Lang.TURTLE);
-        formatToLangs.put("application/rdf+xml", Lang.RDFXML);
-        formatToLangs.put("text/plain", Lang.RDFNULL);
-
-        ResultSetWriterRegistry.init();
-    }
 
     public String getQueryResult(String document, String query, String format) throws IOException {
         Model model = buildModelFromString(document);
@@ -104,16 +81,4 @@ public class SparqlService {
 
     }
 
-    private Model buildModelFromString(String document) throws IOException {
-        Model model = ModelFactory.createDefaultModel();
-        InputStream inputStream = IOUtils.toInputStream(document, "UTF-8");
-
-        try {
-            model.read(inputStream, null, "TTL");
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-        return model;
-    }
 }
