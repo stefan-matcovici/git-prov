@@ -29,7 +29,7 @@ public class StoreController {
     ProvenanceService provenanceService;
 
 
-    @RequestMapping(value = "/owner/{owner}/{name}", method = RequestMethod.GET, produces = {"text/plain", "application/xml", "text/csv", "application/json", "text/tab-separated-values", "application/sparql-results+xml", "text/rdf+n3", "application/x-turtle", "application/n-triples", "application/ld+json"})
+    @RequestMapping(value = "/owner/{owner}/{name}", method = RequestMethod.GET, produces = {"text/csv", "application/json", "application/rdf+xml", "application/x-turtle", "application/n-triples", "application/ld+json"})
     @ResponseBody
     HttpEntity<?> storeRepositoryByUserAndName(HttpServletRequest request, @PathVariable String owner, @PathVariable String name) throws IOException {
         Repository repository = githubService.getRepositoryByOwnerAndName(owner, name);
