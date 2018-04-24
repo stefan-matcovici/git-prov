@@ -22,7 +22,7 @@ import java.io.IOException;
 import java.util.Map;
 
 import static ro.uaic.info.gitprov.services.OAuthService.decodeQueryString;
-import static ro.uaic.info.gitprov.utils.ControllerUtils.getProvenanceNamespace;
+import static ro.uaic.info.gitprov.utils.ControllerUtils.getProvControllerProvenanceNamespace;
 
 @RestController
 @RequestMapping(value = "/prov-store")
@@ -114,7 +114,7 @@ public class ProvStoreController {
         String oauthTokenSecret = String.valueOf(session.getAttribute("oauth_token_secret"));
 
         Repository repository = githubService.getRepositoryByOwnerAndName(owner, name);
-        String result = provenanceService.repositoryToDocument(repository, getProvenanceNamespace(owner, name), JSON_MIME_TYPE);
+        String result = provenanceService.repositoryToDocument(repository, getProvControllerProvenanceNamespace(owner, name), JSON_MIME_TYPE);
 
         ProvStoreRequestStorage requestStorage = new ProvStoreRequestStorage(uploadDocumentRequest.getName(), uploadDocumentRequest.isPublic(), result);
 

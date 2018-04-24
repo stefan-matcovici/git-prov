@@ -135,8 +135,22 @@ public class ProvenanceService {
 
             final CommitUser commitAuthor = commit.getAuthor();
             final Date authorDate = commitAuthor.getDate();
-            final String authorName = repositoryCommit.getAuthor().getLogin();
+            final User author = repositoryCommit.getAuthor();
+            String authorName;
 
+            if (author == null) {
+                authorName = agents.stream().filter(agent -> {
+                    List<Other> otherList = agent.getOther();
+                    for (Other other : otherList) {
+                        if (other.getElementName().getLocalPart().equals("name")) {
+                            return String.valueOf(other.getValue()).equals(repositoryCommit.getCommit().getAuthor().getName());
+                        }
+                    }
+                    return true;
+                }).map(agent -> agent.getLabel().get(0).getValue()).collect(Collectors.toList()).get(0);
+            } else {
+                authorName = author.getLogin();
+            }
 
             Activity activity = processActivity(sha, authorDate, commitMessage);
             processWasAssociatedWith(sha, authorName, activity.getId());
@@ -339,6 +353,11 @@ public class ProvenanceService {
             }
 
             attributes.add(provFactory.newAttribute(FOAF_NS, "img", FOAF_PREFIX, user.getAvatarUrl(), provFactory.getName().XSD_ANY_URI));
+
+            String name = user.getName();
+            if (name != null) {
+                attributes.add(provFactory.newAttribute(FOAF_NS, "name", FOAF_PREFIX, name, provFactory.getName().XSD_STRING));
+            }
 
             agent = provFactory.newAgent(getQualifiedName(getAuthorLoginLabel(authorLogin), PROVENANCE_PREFIX), attributes);
             this.agents.add(agent);

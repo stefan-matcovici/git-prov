@@ -34,7 +34,7 @@ public class SparqlController {
     @ResponseBody
     HttpEntity<?> executeQuery(HttpServletRequest request, @PathVariable String owner, @PathVariable String name, @RequestBody String query) throws IOException {
         Repository repository = githubService.getRepositoryByOwnerAndName(owner, name);
-//        String result = provenanceService.repositoryToDocument(repository, getProvenanceNamespace(owner, name), "application/x-turtle");
+//        String result = provenanceService.repositoryToDocument(repository, getProvControllerProvenanceNamespace(owner, name), "application/x-turtle");
         String result = storeService.getDocument(owner + "/" + name, "application/x-turtle");
 
         String contentType = request.getHeader("Accept");

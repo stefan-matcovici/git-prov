@@ -13,7 +13,7 @@ import ro.uaic.info.gitprov.services.ProvenanceService;
 
 import java.io.IOException;
 
-import static ro.uaic.info.gitprov.utils.ControllerUtils.getProvenanceNamespace;
+import static ro.uaic.info.gitprov.utils.ControllerUtils.getProvControllerProvenanceNamespace;
 
 @RestController
 @RequestMapping(value = "/viz/{owner}/{name}")
@@ -35,7 +35,7 @@ public class ProvOVizController {
         String provOVizServiceUrl = "http://provoviz.org/service";
 
         Repository repository = githubService.getRepositoryByOwnerAndName(owner, name);
-        String result = provenanceService.repositoryToDocument(repository, getProvenanceNamespace(owner, name), "application/x-turtle");
+        String result = provenanceService.repositoryToDocument(repository, getProvControllerProvenanceNamespace(owner, name), "application/x-turtle");
 
         HttpRequest httpRequest = HttpRequest.post(provOVizServiceUrl)
                 .form(provOVizService.getFormParameters(result));

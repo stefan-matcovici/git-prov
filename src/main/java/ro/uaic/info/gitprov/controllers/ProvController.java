@@ -20,7 +20,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import static ro.uaic.info.gitprov.utils.ControllerUtils.getProvenanceNamespace;
+import static ro.uaic.info.gitprov.utils.ControllerUtils.getProvControllerProvenanceNamespace;
 
 /**
  * The Prov controller.
@@ -56,7 +56,7 @@ public class ProvController {
         if (requestParameters.size() == 0) {
             return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         } else {
-            githubService.getRepositoryByQueryParameters(requestParameters).forEach(repository -> result.add(getProvenanceNamespace(repository.getOwner(), repository.getName())));
+            githubService.getRepositoryByQueryParameters(requestParameters).forEach(repository -> result.add(getProvControllerProvenanceNamespace(repository.getOwner(), repository.getName())));
         }
 
         return new ResponseEntity<>(result, HttpStatus.MULTIPLE_CHOICES);
@@ -75,7 +75,7 @@ public class ProvController {
     HttpEntity<?> getRepositoryByUserAndName(HttpServletRequest request, @PathVariable String owner, @PathVariable String name) throws IOException {
         Repository repository = githubService.getRepositoryByOwnerAndName(owner, name);
         String contentType = request.getHeader("Accept");
-        String result = provenanceService.repositoryToDocument(repository, getProvenanceNamespace(owner, name), contentType);
+        String result = provenanceService.repositoryToDocument(repository, getProvControllerProvenanceNamespace(owner, name), contentType);
         return new ResponseEntity<>(result, HttpStatus.OK);
     }
 
@@ -91,7 +91,7 @@ public class ProvController {
     HttpEntity<List<String>> getAllRepositoriesByOrganization(@PathVariable String organization) throws IOException {
         List<String> result = new ArrayList<>();
 
-        githubService.getAllRepositoriesByOrganization(organization).forEach(repository -> result.add(getProvenanceNamespace(organization, repository.getName())));
+        githubService.getAllRepositoriesByOrganization(organization).forEach(repository -> result.add(getProvControllerProvenanceNamespace(organization, repository.getName())));
 
         return new ResponseEntity<>(result, HttpStatus.MULTIPLE_CHOICES);
     }
@@ -108,7 +108,7 @@ public class ProvController {
     HttpEntity<List<String>> getAllRepositoriesByUser(@PathVariable String user) throws IOException {
         List<String> result = new ArrayList<>();
 
-        githubService.getAllRepositoriesByUser(user).forEach(repository -> result.add(getProvenanceNamespace(user, repository.getName())));
+        githubService.getAllRepositoriesByUser(user).forEach(repository -> result.add(getProvControllerProvenanceNamespace(user, repository.getName())));
 
         return new ResponseEntity<>(result, HttpStatus.MULTIPLE_CHOICES);
     }
