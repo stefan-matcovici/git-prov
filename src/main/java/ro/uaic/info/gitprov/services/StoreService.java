@@ -60,6 +60,7 @@ public class StoreService {
 
     public List<String[]> getStoredRepositories() {
         List<String[]> result = new ArrayList<>();
+        dataset.begin(ReadWrite.READ);
         Iterator<String> storedRepoIterator = dataset.listNames();
 
         while (storedRepoIterator.hasNext()) {
@@ -73,6 +74,7 @@ public class StoreService {
 
             result.add(parsedName);
         }
+        dataset.end();
 
         return result;
     }
