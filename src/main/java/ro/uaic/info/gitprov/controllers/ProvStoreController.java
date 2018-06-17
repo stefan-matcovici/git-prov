@@ -22,9 +22,10 @@ import java.io.IOException;
 import java.util.Map;
 
 import static ro.uaic.info.gitprov.services.OAuthService.decodeQueryString;
+import static ro.uaic.info.gitprov.utils.ControllerUtils.getProvControllerProvenanceNamespace;
 
 @RestController
-@RequestMapping(value = "/store")
+@RequestMapping(value = "/prov-store")
 public class ProvStoreController {
 
     private static final String PROVSTORE_STORE_DOCUMENT = "https://provenance.ecs.soton.ac.uk/store/api/v0/documents/";
@@ -77,7 +78,7 @@ public class ProvStoreController {
     HttpEntity<?> loginByOAuth(HttpSession httpSession) throws IOException {
         String requestTokenUrl = "https://provenance.ecs.soton.ac.uk/store/oauth/request_token/";
         HttpRequest httpRequest = HttpRequest.get(requestTokenUrl)
-                .header("Authorization", oAuthService.getRequestTokenAuthorizationHeader(ControllerLinkBuilder.linkTo(ProvStoreController.class).slash("oauth-response").toString()));
+                .header("Authorization", oAuthService.getRequestTokenAuthorizationHeader(ControllerLinkBuilder.linkTo(ProvStoreController.class).slash("oauth").slash("response").toString()));
 
 
         Map<String, String> params = decodeQueryString(httpRequest.body());
@@ -113,7 +114,7 @@ public class ProvStoreController {
         String oauthTokenSecret = String.valueOf(session.getAttribute("oauth_token_secret"));
 
         Repository repository = githubService.getRepositoryByOwnerAndName(owner, name);
-        String result = provenanceService.repositoryToDocument(repository, ControllerLinkBuilder.linkTo(ProvController.class).slash("owner").slash(owner).slash(name).toString() + "#", JSON_MIME_TYPE);
+        String result = provenanceService.repositoryToDocument(repository, getProvControllerProvenanceNamespace(owner, name), JSON_MIME_TYPE);
 
         ProvStoreRequestStorage requestStorage = new ProvStoreRequestStorage(uploadDocumentRequest.getName(), uploadDocumentRequest.isPublic(), result);
 

@@ -2,13 +2,10 @@ package ro.uaic.info.gitprov.controllers;
 
 import org.apache.log4j.Logger;
 import org.eclipse.egit.github.core.Repository;
-import org.eclipse.egit.github.core.SearchRepository;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.hateoas.mvc.ControllerLinkBuilder;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 import ro.uaic.info.gitprov.services.GithubService;
 import ro.uaic.info.gitprov.services.ProvenanceService;
@@ -19,10 +16,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import static ro.uaic.info.gitprov.utils.ControllerUtils.getProvControllerProvenanceNamespace;
+
 /**
  * The Prov controller.
  */
-@Controller
+@RestController
 @RequestMapping(value = "/repos")
 public class ProvController {
     @Autowired
@@ -53,10 +52,7 @@ public class ProvController {
         if (requestParameters.size() == 0) {
             return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         } else {
-            for (SearchRepository repository : githubService.getRepositoryByQueryParameters(requestParameters)) {
-                ControllerLinkBuilder builder = ControllerLinkBuilder.linkTo(ProvController.class).slash("owner").slash(repository.getOwner()).slash(repository.getName());
-                result.add(builder.toString());
-            }
+            githubService.getRepositoryByQueryParameters(requestParameters).forEach(repository -> result.add(getProvControllerProvenanceNamespace(repository.getOwner(), repository.getName())));
         }
 
         return new ResponseEntity<>(result, HttpStatus.MULTIPLE_CHOICES);
@@ -66,15 +62,16 @@ public class ProvController {
      * Gets repository by user and name.
      *
      * @param owner the owner
-     * @param name the name
+     * @param name  the name
      * @return the repository by user and name
      * @throws IOException the io exception
      */
-    @RequestMapping(value = "/owner/{owner}/{name}", method = RequestMethod.GET)
+    @RequestMapping(value = "/owner/{owner}/{name}", method = RequestMethod.GET, produces = {"text/provenance-notation", "application/x-turtle", "application/xml", "application/rdf+xml", "application/pdf", "application/json", "application/msword", "image/svg+xml", "image/png", "image/jpeg", "application/trig"})
     @ResponseBody
-    HttpEntity<?> getRepositoryByUserAndName(@PathVariable String owner, @PathVariable String name, @RequestHeader("Content-Type") String contentType) throws IOException {
+    HttpEntity<?> getRepositoryByUserAndName(HttpServletRequest request, @PathVariable String owner, @PathVariable String name) throws IOException {
         Repository repository = githubService.getRepositoryByOwnerAndName(owner, name);
-        String result = provenanceService.repositoryToDocument(repository, ControllerLinkBuilder.linkTo(ProvController.class).slash("owner").slash(owner).slash(name).toString() + "#", contentType);
+        String contentType = request.getHeader("Accept");
+        String result = provenanceService.repositoryToDocument(repository, getProvControllerProvenanceNamespace(owner, name), contentType);
         return new ResponseEntity<>(result, HttpStatus.OK);
     }
 
@@ -89,10 +86,8 @@ public class ProvController {
     @ResponseBody
     HttpEntity<List<String>> getAllRepositoriesByOrganization(@PathVariable String organization) throws IOException {
         List<String> result = new ArrayList<>();
-        for (Repository repository : githubService.getAllRepositoriesByOrganization(organization)) {
-            ControllerLinkBuilder builder = ControllerLinkBuilder.linkTo(ProvController.class).slash("owner").slash(organization).slash(repository.getName());
-            result.add(builder.toString());
-        }
+
+        githubService.getAllRepositoriesByOrganization(organization).forEach(repository -> result.add(getProvControllerProvenanceNamespace(organization, repository.getName())));
 
         return new ResponseEntity<>(result, HttpStatus.MULTIPLE_CHOICES);
     }
@@ -108,10 +103,8 @@ public class ProvController {
     @ResponseBody
     HttpEntity<List<String>> getAllRepositoriesByUser(@PathVariable String user) throws IOException {
         List<String> result = new ArrayList<>();
-        for (Repository repository : githubService.getAllRepositoriesByUser(user)) {
-            ControllerLinkBuilder builder = ControllerLinkBuilder.linkTo(ProvController.class).slash("owner").slash(repository.getOwner().getLogin()).slash(repository.getName());
-            result.add(builder.toString());
-        }
+
+        githubService.getAllRepositoriesByUser(user).forEach(repository -> result.add(getProvControllerProvenanceNamespace(user, repository.getName())));
 
         return new ResponseEntity<>(result, HttpStatus.MULTIPLE_CHOICES);
     }
