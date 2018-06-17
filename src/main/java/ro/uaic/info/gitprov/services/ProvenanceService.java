@@ -175,7 +175,7 @@ public class ProvenanceService {
                     case "modified":
                         processWasGeneratedBy(sha, filename, authorDate, newEntity, activity);
                         processUsed(sha, filename, authorDate, activity);
-                        processWasDerivedFrom(sha, filename);
+                        processWasDerivedFrom(sha, filename, commitFile.getAdditions(), commitFile.getChanges(), commitFile.getDeletions());
                         break;
                 }
                 entities.add(newEntity);
@@ -480,19 +480,27 @@ public class ProvenanceService {
 
     /**
      * Registers an wasDerivedFrom provenance record object
-     *
-     * @param sha      the sha of the commit
+     *  @param sha      the sha of the commit
      * @param filename the name of the file
+     * @param additions
+     * @param changes
+     * @param deletions
      */
-    private void processWasDerivedFrom(String sha, String filename) {
+    private void processWasDerivedFrom(String sha, String filename, int additions, int changes, int deletions) {
         String parentCommitSha = getParentCommitSha(filename);
+        List<Attribute> attributes = new ArrayList<>();
         QualifiedName generatedEntity = getQualifiedName(getStandardizedSpecializedFilename(filename, sha), PROVENANCE_PREFIX);
         QualifiedName usedEntity = getQualifiedName(getStandardizedSpecializedFilename(filename, parentCommitSha), PROVENANCE_PREFIX);
         QualifiedName activity = getQualifiedName("commit-" + sha, PROVENANCE_PREFIX);
         QualifiedName used = getQualifiedName("usage-" + sha + "-" + parentCommitSha, PROVENANCE_PREFIX);
         QualifiedName wasDerivedFromId = getQualifiedName("derivation-" + getStandardizedSpecializedFilename(filename, sha) + "-" + parentCommitSha, PROVENANCE_PREFIX);
         QualifiedName generation = getQualifiedName("generation-" + sha, PROVENANCE_PREFIX);
-        wasDerivedFroms.add(provFactory.newWasDerivedFrom(wasDerivedFromId, generatedEntity, usedEntity, activity, generation, used, null));
+
+        attributes.add(provFactory.newAttribute(provenanceNs, "additions", PROVENANCE_PREFIX, additions, provFactory.getName().XSD_INT));
+        attributes.add(provFactory.newAttribute(provenanceNs, "changes", PROVENANCE_PREFIX, changes, provFactory.getName().XSD_INT));
+        attributes.add(provFactory.newAttribute(provenanceNs, "deletions", PROVENANCE_PREFIX, deletions, provFactory.getName().XSD_INT));
+
+        wasDerivedFroms.add(provFactory.newWasDerivedFrom(wasDerivedFromId, generatedEntity, usedEntity, activity, generation, used, attributes));
     }
 
     /**
